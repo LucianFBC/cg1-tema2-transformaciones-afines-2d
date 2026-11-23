@@ -1,0 +1,44 @@
+# Compilación C++ / CMake
+build/
+src/build/
+*.o
+*.obj
+*.exe
+*.out
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Archivos auxiliares de LaTeX
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Sistema operativo / Editores
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/.browse*
