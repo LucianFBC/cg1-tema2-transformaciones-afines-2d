@@ -134,10 +134,13 @@ cg::ExperimentConfig buildActiveConfig() {
         case 8: {
             cfg.id = "LIVE";
             cfg.title = gParams.reverseOrder
-                            ? "8: Modo interactivo libre (ORDEN INVERTIDO)"
-                            : "8: Modo interactivo libre (Hx -> S -> Ref? -> R -> T)";
+                            ? "8: Modo libre (ORDEN INVERTIDO)"
+                            : "8: Modo libre (Hx -> Hy -> S -> Ref? -> R -> T)";
             std::vector<cg::NamedTransform> st;
             st.push_back({"Hx(" + fmtNum(gParams.shearX) + ")", cg::shearXMatrix(gParams.shearX)});
+            if (std::abs(gParams.shearY) > 1e-9) {
+                st.push_back({"Hy(" + fmtNum(gParams.shearY) + ")", cg::shearYMatrix(gParams.shearY)});
+            }
             st.push_back({"S(" + fmtNum(gParams.scaleX) + "," + fmtNum(gParams.scaleY) + ")",
                           cg::scalingMatrix(gParams.scaleX, gParams.scaleY)});
             if (gParams.reflectY) st.push_back({"Ref_y", cg::reflectionYMatrix()});
@@ -201,6 +204,7 @@ void setModeDefaults(int mode) {
         gParams.scaleY = 0.0;
     } else if (mode == 8) {
         gParams.shearX = 0.5;
+        gParams.shearY = 0.0;
         gParams.scaleX = 1.2;
         gParams.scaleY = 0.9;
         gParams.angleDeg = 20.0;
@@ -220,7 +224,7 @@ void setModeDefaults(int mode) {
     }
 }
 
-// Limpia la consola y redibuja el menu compacto + estado en vivo de la opcion activa
+// Limpia la consola y redibuja el menu ordenado + estado en vivo de la opcion activa
 void renderTerminalDashboard() {
     std::cout << "\033[2J\033[H";
 
@@ -231,19 +235,24 @@ void renderTerminalDashboard() {
     std::cout << "============================================================================\n"
               << "  LABORATORIO DE TRANSFORMACIONES AFINES 2D | Rejilla 160x120 (4 px/u)\n"
               << "============================================================================\n"
-              << "MODOS : [0] Base (Identidad)\n"
-              << "        [1] Cizallamiento horizontal Hx   [2] Cizallamiento vertical Hy\n"
-              << "        [3] Reflexion ejes (Ref_y/Ref_x)  [4] Reflexion oblicua Ref_phi\n"
-              << "        [T] Traslacion T(tx,ty)           [9] Rotacion R(ang)\n"
-              << "        [K] Escalamiento S(sx,sy)         [7] Escalamiento singular S(sx,0)\n"
-              << "        [5] Orden R*Hx vs Hx*R            [6] Composicion 4 pasos (T*R*S*Hx)\n"
-              << "        [8] Libre (Hx, S, Ref, R, T)      [C] Cadena personalizada (N>=3)\n"
-              << "AJUSTE: [+/-] Param. activo | [A/D] Cizall.X | [J/L] Cizall.Y | [Z/X] Esc.X\n"
-              << "        [W/S] Esc.Y | [Q/E] Rotacion/Phi | [Flechas] Traslacion | [F] Ref | [O] Orden\n"
-              << "VISTA : [G] Rejilla(" << (gShowPixelGrid ? "ON" : "OFF")
+              << "TRANSFORMACIONES ELEMENTALES (matrices 3x3 propias):\n"
+              << "  [0] Base (Identidad)                 [T] Traslacion T(tx, ty)\n"
+              << "  [1] Cizallamiento horizontal Hx(kx)  [9] Rotacion R(angulo)\n"
+              << "  [2] Cizallamiento vertical Hy(ky)    [K] Escalamiento S(sx, sy)\n"
+              << "  [3] Reflexion ejes (Ref_y / Ref_x)   [4] Reflexion recta oblicua Ref_phi\n"
+              << "\n"
+              << "COMPOSICIONES, CASOS DE PRUEBA Y MODO LIBRE:\n"
+              << "  [5] Orden: R(45)*Hx vs Hx*R(45)      [6] Cambio de area: T*R*S*Hx (4p)\n"
+              << "  [7] Caso singular: S(sx, 0) (det=0)  [8] Modo libre (Hx,Hy,S,Ref,R,T)\n"
+              << "  [C] Cadena personalizada (N >= 3)\n"
+              << "\n"
+              << "CONTROLES EN VIVO:\n"
+              << "  Parametros : [+/-] Activo | [A/D] Hx | [J/L] Hy | [Z/X] Sx | [W/S] Sy\n"
+              << "               [Q/E] Rotacion/Phi | [Flechas] Traslacion | [F] Ref | [O] Orden\n"
+              << "  Vista      : [G] Rejilla(" << (gShowPixelGrid ? "ON" : "OFF")
               << ") | [M] Cuadricula(" << (gShowTransformedLattice ? "ON" : "OFF")
-              << ") | [H] Original(" << (gShowOriginal ? "ON" : "OFF")
-              << ") | [V] Vertice(" << gScene.vertexNames[gScene.highlightVertexIndex]
+              << ") | [H] Original(" << (gShowOriginal ? "ON" : "OFF") << ")\n"
+              << "               [V] Vertice(" << gScene.vertexNames[gScene.highlightVertexIndex]
               << ") | [R] Reset | [ESC] Salir\n"
               << "----------------------------------------------------------------------------\n";
 
@@ -501,27 +510,40 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
         else if (gMode == 10) gParams.tx -= 0.5;
         else if (gMode == 11) gParams.angleDeg -= 5.0;
         changed = true;
-    } else if (key == GLFW_KEY_A) { gParams.shearX -= 0.1; changed = true; }
-    else if (key == GLFW_KEY_D) { gParams.shearX += 0.1; changed = true; }
-    else if (key == GLFW_KEY_J) { gParams.shearY -= 0.1; changed = true; }
-    else if (key == GLFW_KEY_L) { gParams.shearY += 0.1; changed = true; }
-    else if (key == GLFW_KEY_Z) { gParams.scaleX -= 0.1; changed = true; }
-    else if (key == GLFW_KEY_X) { gParams.scaleX += 0.1; changed = true; }
-    else if (key == GLFW_KEY_S) { gParams.scaleY -= 0.1; changed = true; }
-    else if (key == GLFW_KEY_W) { gParams.scaleY += 0.1; changed = true; }
-    else if (key == GLFW_KEY_Q) {
-        if (gMode == 4) gParams.refPhiDeg += 5.0;
-        else gParams.angleDeg += 5.0;
+    } else if (key == GLFW_KEY_A || key == GLFW_KEY_D) {
+        if (gMode != 1 && gMode != 5 && gMode != 6 && gMode != 8) gMode = 1;
+        gParams.shearX += (key == GLFW_KEY_D) ? 0.1 : -0.1;
         changed = true;
-    } else if (key == GLFW_KEY_E) {
-        if (gMode == 4) gParams.refPhiDeg -= 5.0;
-        else gParams.angleDeg -= 5.0;
+    } else if (key == GLFW_KEY_J || key == GLFW_KEY_L) {
+        if (gMode != 2 && gMode != 8) gMode = 2;
+        gParams.shearY += (key == GLFW_KEY_L) ? 0.1 : -0.1;
         changed = true;
-    } else if (key == GLFW_KEY_LEFT)  { gParams.tx -= 0.5; changed = true; }
-    else if (key == GLFW_KEY_RIGHT) { gParams.tx += 0.5; changed = true; }
-    else if (key == GLFW_KEY_UP)    { gParams.ty += 0.5; changed = true; }
-    else if (key == GLFW_KEY_DOWN)  { gParams.ty -= 0.5; changed = true; }
-    else if (action == GLFW_PRESS && key == GLFW_KEY_F) {
+    } else if (key == GLFW_KEY_Z || key == GLFW_KEY_X) {
+        if (gMode != 6 && gMode != 7 && gMode != 8 && gMode != 12) gMode = 12;
+        gParams.scaleX += (key == GLFW_KEY_X) ? 0.1 : -0.1;
+        changed = true;
+    } else if (key == GLFW_KEY_S || key == GLFW_KEY_W) {
+        if (gMode != 6 && gMode != 8 && gMode != 12) gMode = 12;
+        gParams.scaleY += (key == GLFW_KEY_W) ? 0.1 : -0.1;
+        changed = true;
+    } else if (key == GLFW_KEY_Q || key == GLFW_KEY_E) {
+        const double delta = (key == GLFW_KEY_Q) ? 5.0 : -5.0;
+        if (gMode == 4) {
+            gParams.refPhiDeg += delta;
+        } else {
+            if (gMode != 5 && gMode != 6 && gMode != 8 && gMode != 11) gMode = 11;
+            gParams.angleDeg += delta;
+        }
+        changed = true;
+    } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_RIGHT ||
+               key == GLFW_KEY_UP   || key == GLFW_KEY_DOWN) {
+        if (gMode != 6 && gMode != 8 && gMode != 10) gMode = 10;
+        if (key == GLFW_KEY_LEFT)  gParams.tx -= 0.5;
+        if (key == GLFW_KEY_RIGHT) gParams.tx += 0.5;
+        if (key == GLFW_KEY_UP)    gParams.ty += 0.5;
+        if (key == GLFW_KEY_DOWN)  gParams.ty -= 0.5;
+        changed = true;
+    } else if (action == GLFW_PRESS && key == GLFW_KEY_F) {
         if (gMode == 3) {
             gParams.reflectX = !gParams.reflectX;
         } else {

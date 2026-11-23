@@ -49,10 +49,10 @@ cmake --build build -j
 | `5` | Comparación de orden: $R(\theta)H_x(k_x)$ (azul) frente a $H_x(k_x)R(\theta)$ (naranja) |
 | `6` | Composición de 4 pasos con cambio de área $T\cdot R\cdot S\cdot H_x$ ($|\det(A)| = 1.20$) |
 | `7` | Caso degenerado singular $S(s_x, 0)$ ($\det(A)=0$, sin inversa) |
-| `8` | Modo compuesto interactivo libre ($H_x \to S \to \mathrm{Ref}_y? \to R \to T$) |
+| `8` | Modo compuesto interactivo libre ($H_x \to H_y \to S \to \mathrm{Ref}? \to R \to T$) |
 | `C` | Constructor por consola para encadenar $N \ge 3$ transformaciones exactas |
 | `+` / `-` | Modificar el parámetro principal del modo activo en vivo |
-| `A` / `D`, `J` / `L` | Ajustar cizallamiento horizontal $k_x$ y vertical $k_y$ ($\pm 0.1$) |
+| `A` / `D`, `J` / `L` | Ajustar cizallamiento horizontal $k_x$ y vertical $k_y$ ($\pm 0.1$; activan $H_x$/$H_y$ o modifican modo `8`) |
 | `Z` / `X`, `S` / `W` | Ajustar escala $s_x$ y $s_y$ ($\pm 0.1$; permite llevar $s_y$ a $0.0$) |
 | `Q` / `E`, `← ↑ ↓ →` | Ajustar rotación $\theta$ (o $\phi$ en modo `4`) y traslación $(t_x, t_y)$ |
 | `F` / `O` | Alternar reflexión $\mathrm{Ref}_y$ o invertir el orden de la cadena en modo `8` |

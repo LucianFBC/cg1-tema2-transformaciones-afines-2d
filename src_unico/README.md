@@ -32,7 +32,7 @@ cmake --build build -j
 - `5`: Comparacion simultanea de orden `R(ang)*Hx(kx)` (azul) vs `Hx(kx)*R(ang)` (naranja)
 - `6`: Composicion de 4 pasos con cambio de area `T*R*S*Hx`
 - `7`: Caso degenerado / matriz singular `S(sx, 0)`
-- `8`: Modo interactivo libre (`Hx -> S -> Ref_y? -> R -> T`)
+- `8`: Modo interactivo libre (`Hx -> Hy -> S -> Ref? -> R -> T`)
 - `C`: Constructor por consola de cadena personalizada (`N >= 3` transformaciones)
 - `+` / `-`: Ajusta el parametro principal del modo activo
 - `A`/`D` (`kx`), `J`/`L` (`ky`), `Z`/`X` (`sx`), `W`/`S` (`sy`), `Q`/`E` (`angulo` o `phi`), `Flechas` (`tx`, `ty`)

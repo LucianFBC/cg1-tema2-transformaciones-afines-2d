@@ -9,8 +9,7 @@
 \usepackage{graphicx}
 \graphicspath{{figuras/}}
 \usepackage{float}
-\usepackage{natbib}
-\usepackage{xurl}
+\usepackage[natbibapa]{apacite}
 \usepackage{ragged2e}
 \usepackage{hyperref}
 \usepackage{booktabs}
@@ -60,7 +59,7 @@
 
 \section{Objetivos}
 
-El presente trabajo analiza las transformaciones afines en el plano bidimensional mediante matrices homogéneas $3\times 3$ y contrasta visual y cuantitativamente su efecto geométrico mediante un laboratorio interactivo desarrollado en C++ sobre rasterización propia \citep{hearn2011,foley2014}. Con ello se busca:
+El presente trabajo analiza las transformaciones afines en el plano bidimensional mediante matrices homogéneas $3\times 3$ y contrasta visual y cuantitativamente su efecto geométrico mediante un laboratorio interactivo desarrollado en C++ sobre rasterización propia \citep{hearn2011,shirley2021}. Con ello se busca:
 
 \begin{itemize}
   \item Formalizar la transformación afín $p' = Ap + t$ en coordenadas homogéneas con vectores columna y derivar las matrices de traslación, rotación, escalamiento, cizallamiento horizontal y vertical, y reflexión respecto de los ejes y de una recta oblicua por el origen.
@@ -98,7 +97,7 @@ En relación con el sistema de referencia, se trabaja sobre un plano cartesiano 
 
 \subsection{Matrices elementales: traslación, rotación, escalamiento y cizallamiento}
 
-Las transformaciones rígidas y de deformación básicas admiten expresiones cerradas en coordenadas homogéneas \citep{hearn2011,angel2015}:
+Las transformaciones rígidas y de deformación básicas admiten expresiones cerradas en coordenadas homogéneas \citep{hearn2011}:
 \begin{equation}
   T(t_x,t_y) = \begin{bmatrix} 1 & 0 & t_x \\ 0 & 1 & t_y \\ 0 & 0 & 1 \end{bmatrix}, \quad
   R(\theta) = \begin{bmatrix} \cos\theta & -\sin\theta & 0 \\ \sin\theta & \cos\theta & 0 \\ 0 & 0 & 1 \end{bmatrix}, \quad
@@ -156,7 +155,7 @@ Como cualquier polígono simple puede descomponerse en triángulos y la traslaci
   \item \textbf{Invertibilidad y singularidad:} la transformación admite inversa única si y solo si $\det(A) \neq 0$, dada por la parte lineal $A^{-1}$ y la traslación $-A^{-1}t$. Cuando $\det(A) = 0$, las columnas de $A$ son linealmente dependientes ($\mathrm{rango}(A) < 2$), el plano colapsa hacia una recta o un punto, la aplicación deja de ser inyectiva y no existe matriz inversa.
 \end{itemize}
 
-Respecto a las propiedades conservadas bajo una transformación afín invertible ($\det(A) \neq 0$), considérese una recta parametrizada $r(\lambda) = p_0 + \lambda d$ con $d \neq 0$. Su imagen es $r'(\lambda) = A(p_0 + \lambda d) + t = (Ap_0 + t) + \lambda(Ad)$. Como $A$ es invertible, $Ad \neq 0$, de donde se demuestran las siguientes propiedades invariantes \citep{foley2014}:
+Respecto a las propiedades conservadas bajo una transformación afín invertible ($\det(A) \neq 0$), considérese una recta parametrizada $r(\lambda) = p_0 + \lambda d$ con $d \neq 0$. Su imagen es $r'(\lambda) = A(p_0 + \lambda d) + t = (Ap_0 + t) + \lambda(Ad)$. Como $A$ es invertible, $Ad \neq 0$, de donde se demuestran las siguientes propiedades invariantes \citep{shirley2021,vince2012}:
 \begin{enumerate}
   \item \textbf{Rectas y colinealidad:} la imagen de toda recta es otra recta; en particular, tres o más puntos colineales permanecen colineales.
   \item \textbf{Razones de segmentos colineales:} si $q = (1-\lambda)p_0 + \lambda p_1$, por linealidad se cumple $q' = (1-\lambda)p'_0 + \lambda p'_1$. Así se preservan puntos medios y cualquier razón de división interna o externa.
@@ -276,11 +275,13 @@ En contraste, el escalamiento degenerado $S(1.0, 0.0)$ anula el determinante ($\
 
 \section{Discusión de propiedades límite y restricciones de discretización}
 
-Los resultados permiten precisar tres aspectos técnicos frecuentes en la interpretación de transformaciones afines. En primer lugar, una transformación puede conservar exactamente el área y, al mismo tiempo, deformar ángulos y longitudes siempre que $|\det(A)|=1$ sin que la parte lineal sea ortogonal ($A^T A \neq I$). El cizallamiento $H_x(0.7)$ lo demuestra de manera directa al mantener el área en $24.00\text{ u}^2$ mientras reduce el ángulo en $V_0$ de $90.00^\circ$ a $55.01^\circ$; el mismo fenómeno ocurre en un escalamiento anisotrópico equiareal como $S(2, 0.5)$.
+A partir de los resultados obtenidos se responden de manera explícita tres interrogantes críticas sobre la interpretación geométrica de las transformaciones afines:
 
-En segundo lugar, un determinante negativo no representa un área física negativa. En geometría euclidiana, la medida de superficie es siempre mayor o igual que cero y depende únicamente de $|\det(A)|$. El signo de $\det(A)$ codifica la orientación del sistema transformado: como evidenció $\mathrm{Ref}_y$, el paso de $+24.00$ a $-24.00$ en la fórmula del zapatero indica que el recorrido de los vértices cambió de antihorario a horario manteniendo intacta la superficie de $24.00\text{ u}^2$.
+\textbf{¿Puede una transformación conservar el área y alterar los ángulos?} Sí. Una transformación afín conserva exactamente el área y, al mismo tiempo, deforma ángulos y longitudes siempre que $|\det(A)|=1$ sin que la parte lineal sea ortogonal ($A^T A \neq I$). El cizallamiento $H_x(0.7)$ lo demuestra al mantener el área en $24.00\text{ u}^2$ mientras reduce el ángulo interno en $V_0$ de $90.00^\circ$ a $55.01^\circ$; el mismo comportamiento ocurre en un escalamiento anisotrópico equiareal como $S(2, 0.5)$.
 
-En tercer lugar, una matriz singular ($\det(A) = 0$) requiere tratamiento especial tanto en el análisis matemático como en el código. Geométricamente reduce la dimensión efectiva del espacio y destruye la biyectividad; computacionalmente, intentar calcular su inversa mediante $1/\det(A)$ ocasiona división por cero o valores indefinidos (\texttt{NaN}/\texttt{Inf}). Por ello es indispensable comprobar $|\det(A)| < \varepsilon$ antes de invertir e informar explícitamente la condición degenerada.
+\textbf{¿Por qué el determinante negativo no implica área negativa en sentido físico?} Porque en geometría euclidiana la medida de superficie es siempre no negativa y escala exclusivamente por $|\det(A)|$. El signo negativo de $\det(A)$ codifica la inversión de orientación del plano transformado: como evidenció $\mathrm{Ref}_y$, el paso de $+24.00$ a $-24.00$ en la fórmula del zapatero indica que el recorrido de los vértices cambió de antihorario (CCW) a horario (CW) manteniendo intacta la superficie física de $24.00\text{ u}^2$.
+
+\textbf{¿Por qué una matriz singular requiere un tratamiento especial?} Porque cuando $\det(A) = 0$ las columnas de $A$ son linealmente dependientes, el plano colapsa hacia una recta o un punto y se pierden la inyectividad y la invertibilidad. Computacionalmente, intentar calcular su inversa mediante $1/\det(A)$ ocasiona división por cero o valores indefinidos (\texttt{NaN}/\texttt{Inf}). Por ello es obligatorio comprobar $|\det(A)| < \varepsilon$ antes de invertir e informar explícitamente la condición degenerada.
 
 Finalmente, debe reportarse una limitación inherente a la visualización raster en la rejilla discreta de $160\times 120$ celdas ($4$ celdas por unidad matemática). Mientras las métricas numéricas operan en precisión \texttt{double} con errores del orden de $10^{-15}$, la representación en pantalla redondea cada vértice continuo a la celda entera más próxima mediante \texttt{std::lround}, lo cual introduce un desplazamiento puramente visual de hasta $\pm 0.5$ celdas ($\pm 0.125$ unidades cartesianas) y escalonamiento (\emph{aliasing}) en aristas inclinadas. Separar el cálculo analítico de la rasterización garantiza que las verificaciones cuantitativas no se vean contaminadas por la resolución discreta.
 
@@ -293,7 +294,7 @@ Finalmente, debe reportarse una limitación inherente a la visualización raster
   \item Combinar una rejilla discreta visible de $160\times 120$ celdas ($4$ celdas por unidad) con cálculos continuos en doble precisión y un panel interactivo actualizado en consola permite contrastar en vivo la geometría ideal con su representación raster con alta nitidez y rigor matemático.
 \end{enumerate}
 
-\bibliographystyle{apalike}
+\bibliographystyle{apacite}
 \bibliography{referencias}
 
 % ==============================================================================
@@ -330,7 +331,7 @@ T / 9 / K & Aplica de forma individual traslación $T(t_x,t_y)$, rotación $R(\t
 5 & Superpone $R(\theta)H_x(k_x)$ (azul) y $H_x(k_x)R(\theta)$ (naranja) mostrando la brecha en el vértice seleccionado. \\
 6 & Aplica la composición de cuatro pasos $T\cdot R\cdot S\cdot H_x$ con $|\det(A)| \neq 1$. \\
 7 & Aplica el caso degenerado singular $S(s_x, 0)$ mostrando el colapso y la alerta de no invertibilidad. \\
-8 & Activa el modo interactivo libre ($H_x \to S \to \mathrm{Ref}_y? \to R \to T$). \\
+8 & Activa el modo interactivo libre ($H_x \to H_y \to S \to \mathrm{Ref}? \to R \to T$). \\
 C & Abre en consola el constructor para concatenar $N \ge 3$ transformaciones con parámetros propios. \\
 + / - & Incrementa o reduce en vivo el parámetro principal del modo seleccionado. \\
 A, D / J, L & Ajusta en vivo el cizallamiento horizontal $k_x$ o vertical $k_y$ en pasos de $0.1$. \\
