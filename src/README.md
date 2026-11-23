@@ -14,7 +14,7 @@ Escuela Profesional de Ingeniería Informática y de Sistemas
 
 - **Vectores columna homogéneos**: $p = (x, y, 1)^T$, transformados mediante $p' = M p$.
 - **Composición**: en $M = A B C$, actúa primero $C$, luego $B$ y al final $A$.
-- **Rejilla y eje vertical**: lienzo discreto `40 x 30` (ventana `1000 x 750`, celdas de `25 x 25 px` con margen `0.08` para distinguir cada píxel). El origen cartesiano `(0, 0)` se ubica en la celda central `(20, 15)` y `glOrtho(0, 40, 0, 30, -1, 1)` mantiene el eje $+Y$ hacia arriba.
+- **Rejilla y eje vertical**: lienzo discreto `160 x 120` con escala `4 px/unidad` (ventana `1280 x 960`, celdas de `8 x 8 px` con margen `0.06` para distinguir cada píxel). El origen cartesiano `(0, 0)` se ubica en la celda central `(80, 60)` y `glOrtho(0, 160, 0, 120, -1, 1)` mantiene el eje $+Y$ hacia arriba.
 - **Rasterización propia**: todo trazado evaluado emplea `putPixel()`, `putPoint()`, `drawLine()` (Bresenham en todos los octantes) y `drawPolygon()`, sin usar `glTranslatef`, `glRotatef`, `glScalef`, `glMultMatrix*` ni `GL_POLYGON`.
 - **Panel en consola**: cada cambio de modo o parámetro limpia la terminal y redibuja en el mismo lugar el menú de opciones junto con la matriz compuesta $3\times 3$ y las métricas actualizadas en tiempo real.
 
@@ -32,7 +32,7 @@ cmake --build build -j
 # Laboratorio gráfico interactivo
 ./build/lab_afines
 
-# Exportación de capturas exactas 1000x750 con rejilla visible
+# Exportación de capturas exactas 1280x960 con rejilla visible
 ./build/lab_afines --export-ppm ../experimentos/capturas_ppm
 ```
 
@@ -57,4 +57,5 @@ cmake --build build -j
 | `F` / `O` | Alternar reflexión $\mathrm{Ref}_y$ o invertir el orden de la cadena en modo `8` |
 | `G` | Mostrar u ocultar la rejilla de píxeles (`drawGrid`, igual que en el laboratorio) |
 | `M` / `H` | Mostrar u ocultar la cuadrícula transformada / figura original |
+| `V` | Rotar el vértice seleccionado de referencia (`V0` a `V5`, resaltado en la ventana y consola) |
 | `R` / `ESC` | Reiniciar parámetros / salir |

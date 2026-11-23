@@ -7,8 +7,6 @@ Universidad Nacional de San Antonio Abad del Cusco (UNSAAC) - FIEEIM - EPIIS - S
 - CHOQUENAIRA GARCIA, Ronal Franklin (`174941`)
 - FERNANDEZ BACA CASTRO, Lucian Neptalí (`184197`)
 
----
-
 ## Estructura del repositorio
 
 ```text
@@ -17,15 +15,15 @@ Universidad Nacional de San Antonio Abad del Cusco (UNSAAC) - FIEEIM - EPIIS - S
 │   ├── CMakeLists.txt
 │   ├── README.md               # Compilación, ejecución y tabla de controles
 │   ├── math_affine.hpp         # Matrices homogéneas 3x3 propias, det(A), inversa segura, zapatero y paralelismo
-│   ├── raster.hpp              # Rejilla 40x30, putPixel()/putPoint(), Bresenham, drawPolygon() y exportador PPM
+│   ├── raster.hpp              # Rejilla 160x120 (4 px/u), putPixel()/putPoint(), Bresenham, drawPolygon() y PPM
 │   ├── experiments.hpp         # Escena base (6 vértices, área +24.0 u^2, L1/L2, cuadrícula) y casos de prueba
 │   ├── main.cpp                # Aplicación gráfica interactiva con panel limpio en consola
 │   └── test_experiments.cpp    # Verificación numérica automatizada headless (error < 1e-9)
 ├── src_unico/                  # Versión autocontenida en UN SOLO ARCHIVO (estilo Examen_02)
-│   ├── main.cpp                # Todas las matrices, rasterización 40x30, panel en vivo y --self-test en 1 archivo
+│   ├── main.cpp                # Todas las matrices, rasterización 160x120, panel en vivo y --self-test en 1 archivo
 │   ├── CMakeLists.txt
 │   └── README.md
-├── experimentos/               # Resultados verificados exportados desde C++, capturas 40x30 y script de figuras
+├── experimentos/               # Resultados verificados exportados desde C++, capturas 160x120 y script de figuras
 │   ├── resultados_experimentos.json
 │   ├── resumen_experimentos.txt
 │   ├── capturas_ppm/
@@ -43,8 +41,6 @@ Universidad Nacional de San Antonio Abad del Cusco (UNSAAC) - FIEEIM - EPIIS - S
 │   └── guion_demo_en_vivo.md
 └── Materiales/                 # Sílabo, plan de sesiones y enunciado oficial del curso
 ```
-
----
 
 ## Compilación y ejecución rápida (Linux / WSL2 Ubuntu)
 
@@ -65,8 +61,6 @@ cmake -S . -B build && cmake --build build -j
 ./build/lab_afines_unico --self-test
 ./build/lab_afines_unico
 ```
-
----
 
 ## Informe técnico y presentación
 

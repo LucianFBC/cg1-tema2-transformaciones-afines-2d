@@ -289,15 +289,26 @@ inline ParallelismMetrics measureParallelism(const Segment& s1, const Segment& s
     return m;
 }
 
-// Angulo interno en un vertice (grados) para evidenciar deformacion angular
-inline double interiorAngleDegrees(const Point& prev, const Point& curr, const Point& next) {
+// Angulo interno en un vertice (grados) para evidenciar deformacion angular.
+// Devuelve false si alguna de las aristas incidentes colapso a longitud nula.
+inline bool tryInteriorAngleDegrees(const Point& prev, const Point& curr, const Point& next, double& outDeg) {
     const Point u = {prev.x - curr.x, prev.y - curr.y};
     const Point v = {next.x - curr.x, next.y - curr.y};
     const double nu = std::hypot(u.x, u.y);
     const double nv = std::hypot(v.x, v.y);
-    if (nu < EPSILON || nv < EPSILON) return 0.0;
+    if (nu < EPSILON || nv < EPSILON) {
+        outDeg = 0.0;
+        return false;
+    }
     const double dot = std::clamp((u.x * v.x + u.y * v.y) / (nu * nv), -1.0, 1.0);
-    return std::acos(dot) * (180.0 / PI);
+    outDeg = std::acos(dot) * (180.0 / PI);
+    return true;
+}
+
+inline double interiorAngleDegrees(const Point& prev, const Point& curr, const Point& next) {
+    double deg = 0.0;
+    tryInteriorAngleDegrees(prev, curr, next, deg);
+    return deg;
 }
 
 // ---------------- Utilidades de formato ----------------

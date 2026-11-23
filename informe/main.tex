@@ -3,6 +3,7 @@
 \usepackage[spanish,es-nodecimaldot]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{lmodern}
 \usepackage[right=2cm,left=2.3cm,top=1.9cm,bottom=1.9cm,headsep=0.45cm,footskip=0.75cm]{geometry}
 \usepackage{amssymb,amsmath}
 \usepackage{graphicx}
@@ -15,7 +16,6 @@
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{array}
-\usepackage[absolute,overlay]{textpos}
 \usepackage[most]{tcolorbox}
 \usepackage{xcolor}
 \usepackage{enumitem}
@@ -42,11 +42,14 @@
 
 % Metadatos de caratula
 \newcommand{\tituloTrabajo}{Transformaciones afines, deformación y propiedades geométricas en el plano bidimensional}
+\newcommand{\asignaturaTrabajo}{Computación Gráfica I (IF455AIN)}
+\newcommand{\semestreTrabajo}{Semestre 2026-02}
 \newcommand{\integrantesTrabajo}{%
-  Choquenaira Garcia, Ronal Franklin (174941)\\
-  Fernández Baca Castro, Lucian Neptalí (184197)%
+  CHOQUENAIRA GARCIA, Ronal Franklin (174941)\\[0.1cm]
+  FERNANDEZ BACA CASTRO, Lucian Neptalí (184197)%
 }
-\newcommand{\fechaTrabajo}{noviembre de 2026}
+\newcommand{\docenteTrabajo}{PhD. Carlos Fernando Montoya Cubas}
+\newcommand{\anioTrabajo}{2026}
 
 \begin{document}
 
@@ -55,11 +58,18 @@
 \hypersetup{pageanchor=true}
 \setcounter{page}{1}
 
-\section{Planteamiento del problema y objetivos}
+\section{Objetivos}
 
-Las transformaciones afines bidimensionales constituyen la base matemática para desplazar, orientar, escalar, reflejar y deformar figuras dentro de sistemas gráficos por computadora \citep{hearn2011,foley2014}. Sin embargo, interpretar el comportamiento de una figura transformada únicamente a partir de su apariencia en pantalla resulta engañoso. Un cizallamiento pronunciado modifica ángulos internos y alarga diagonales hasta sugerir visualmente un cambio de tamaño, pese a que el área permanece inalterada. De modo análogo, una reflexión conserva intactas longitudes y áreas físicas, pero invierte el sentido de recorrido de los vértices; mientras que un escalamiento con factor nulo reduce un polígono bidimensional a un segmento unidimensional y elimina la posibilidad de recuperar la figura original.
+\textbf{Objetivo general.} Formalizar las transformaciones afines del plano mediante matrices homogéneas $3\times 3$ y verificar, de manera visual y cuantitativa con un laboratorio interactivo desarrollado en C++ sobre rasterización propia, qué propiedades geométricas se conservan y cuáles se alteran bajo transformaciones elementales, composiciones y casos degenerados \citep{hearn2011,foley2014}.
 
-El objetivo de este estudio es formalizar las transformaciones afines en el plano y verificar, de manera visual y cuantitativa mediante un laboratorio interactivo desarrollado en C++, qué propiedades geométricas se conservan y cuáles se alteran bajo transformaciones elementales, composiciones no conmutativas y casos degenerados. El análisis se articula alrededor de tres hipótesis contrastables: primero, toda transformación afín invertible preserva el paralelismo entre rectas aunque deforme ángulos y longitudes; segundo, el área orientada de un polígono escala exactamente por el determinante de la parte lineal, de modo que su valor absoluto rige el área física y su signo determina la orientación; tercero, el orden en una composición matricial altera el resultado geométrico y la anulación del determinante implica pérdida de dimensión y de invertibilidad.
+\textbf{Objetivos específicos.}
+\begin{enumerate}
+  \item Expresar la transformación afín $p' = Ap + t$ en coordenadas homogéneas con vectores columna y derivar las matrices de traslación, rotación, escalamiento, cizallamiento horizontal y vertical, y reflexión respecto de los ejes y de una recta oblicua por el origen.
+  \item Establecer el papel del determinante de la parte lineal como factor de cambio de área, indicador de orientación y criterio de invertibilidad, y demostrar qué invariantes conserva toda transformación afín invertible.
+  \item Implementar las matrices, su composición y su aplicación a un polígono asimétrico, a dos segmentos paralelos y a una cuadrícula transformable, dibujando todas las primitivas con \texttt{putPoint()}, Bresenham y \texttt{drawPolygon()}.
+  \item Medir numéricamente el área con signo y absoluta, el determinante, el paralelismo y la orientación antes y después de cada transformación, y contrastar los valores medidos con los predichos por la teoría.
+  \item Analizar la no conmutatividad de la composición y el comportamiento de una matriz singular, evitando afirmar la existencia de inversa cuando $\det(A)=0$.
+\end{enumerate}
 
 \section{Fundamento matemático de las transformaciones afines 2D}
 
@@ -131,7 +141,7 @@ El determinante de la parte lineal es $-\cos^2(2\phi) - \sin^2(2\phi) = -1$ y se
 \label{fig:ref30}
 \centering
 \includegraphics[width=0.92\textwidth]{fig_ref30_steps.png}
-\notadocumental{A la izquierda se muestra la salida discreta en rejilla $40\times 30$ del laboratorio; a la derecha se detalla la secuencia $R(-30^\circ)$, $\mathrm{Ref}_x$ y $R(30^\circ)$.}
+\notadocumental{A la izquierda se muestra la salida discreta en rejilla $160\times 120$ ($4\text{ celdas/u}$) del laboratorio; a la derecha se detalla la secuencia $R(-30^\circ)$, $\mathrm{Ref}_x$ y $R(30^\circ)$.}
 \end{figure}
 
 \subsection{Interpretación geométrica del determinante e invariantes afines}
@@ -148,7 +158,7 @@ Como cualquier polígono simple puede descomponerse en triángulos y la traslaci
   \item \textbf{Invertibilidad y singularidad:} la transformación admite inversa única si y solo si $\det(A) \neq 0$, dada por la parte lineal $A^{-1}$ y la traslación $-A^{-1}t$. Cuando $\det(A) = 0$, las columnas de $A$ son linealmente dependientes ($\mathrm{rango}(A) < 2$), el plano colapsa hacia una recta o un punto, la aplicación deja de ser inyectiva y no existe matriz inversa.
 \end{itemize}
 
-Respecto a las propiedades conservadas bajo una transformación afín invertible ($\det(A) \neq 0$), considérese una recta parametrizada $r(\lambda) = p_0 + \lambda d$ con $d \neq 0$. Su imagen es $r'(\lambda) = A(p_0 + \lambda d) + t = (Ap_0 + t) + \lambda(Ad)$. Como $A$ es invertible, $Ad \neq 0$, de donde se demuestran cuatro invariantes \citep{foley2014}:
+Respecto a las propiedades conservadas bajo una transformación afín invertible ($\det(A) \neq 0$), considérese una recta parametrizada $r(\lambda) = p_0 + \lambda d$ con $d \neq 0$. Su imagen es $r'(\lambda) = A(p_0 + \lambda d) + t = (Ap_0 + t) + \lambda(Ad)$. Como $A$ es invertible, $Ad \neq 0$, de donde se demuestran las siguientes propiedades invariantes \citep{foley2014}:
 \begin{enumerate}
   \item \textbf{Rectas y colinealidad:} la imagen de toda recta es otra recta; en particular, tres o más puntos colineales permanecen colineales.
   \item \textbf{Razones de segmentos colineales:} si $q = (1-\lambda)p_0 + \lambda p_1$, por linealidad se cumple $q' = (1-\lambda)p'_0 + \lambda p'_1$. Así se preservan puntos medios y cualquier razón de división interna o externa.
@@ -161,7 +171,7 @@ Por el contrario, las \textbf{longitudes euclidianas} y los \textbf{ángulos} no
 
 Para contrastar de forma reproducible los resultados teóricos con la representación discreta, se implementó un laboratorio interactivo en C++ reutilizando las rutinas elementales de rasterización estudiadas en el curso: trazado de celdas lógicas individuales mediante \texttt{putPixel()} y \texttt{putPoint()}, trazado de segmentos con el algoritmo de Bresenham para los ocho octantes en \texttt{drawLine()} y contorno poligonal en \texttt{drawPolygon()}. Todas las matrices $3\times 3$, productos matriciales, determinantes, inversiones seguras y transformaciones de vértices fueron codificados de manera explícita sin delegar cálculos geométricos a funciones automáticas de OpenGL ni a bibliotecas externas.
 
-La escena se representa sobre una rejilla discreta de $40\times 30$ celdas lógicas en una ventana de $1000\times 750$ píxeles, con un margen de $0.08$ unidades por borde en cada celda y la opción de mostrar u ocultar la rejilla (\texttt{drawGrid()}) para inspeccionar directamente el trazado de píxeles. El origen cartesiano $(0,0)$ se ubica en la celda central $(20,15)$ y se marca en rojo, lo que permite visualizar el rango $[-20, 19]\times[-15, 14]$. La escena de prueba integra tres elementos complementarios:
+La escena se representa sobre una rejilla discreta de $160\times 120$ celdas lógicas (escala de $4$ celdas discretas por unidad matemática) en una ventana de $1280\times 960$ píxeles ($8\times 8$ píxeles por celda con margen de $0.06$ para distinguir cada celda individual) y la opción de mostrar u ocultar la rejilla (\texttt{drawGrid()}). El origen cartesiano $(0,0)$ se ubica en la celda central $(80,60)$, cubriendo el plano $[-20, 20]\times[-15, 15]$ con alta nitidez visual entre original, transformada, segmentos y cuadrícula. La escena de prueba integra tres elementos complementarios:
 \begin{itemize}
   \item Un polígono cóncavo y completamente asimétrico de seis vértices: $V_0=(1,1)$, $V_1=(7,1)$, $V_2=(7,3)$, $V_3=(4,3)$, $V_4=(5,7)$ y $V_5=(1,6)$. Su asimetría impide confundir rotaciones con reflexiones y su área orientada exacta es $+24.0000\text{ u}^2$ (recorrido antihorario).
   \item Dos segmentos originalmente paralelos, $L_1: (2,-2)\to(10,2)$ y $L_2: (2,-6)\to(10,-2)$, ambos con vector director $u = v = (8, 4)$ y separación perpendicular $d_\perp = 8/\sqrt{5} \approx 3.5777\text{ u}$.
@@ -199,30 +209,30 @@ Reflexión vertical $\mathrm{Ref}_y$ & $-1.0000$ & $-24.0000$ & $24.0000$ & $24.
 Orden $R(45^\circ)H_x(0.7)$ & $+1.0000$ & $+24.0000$ & $24.0000$ & $24.0000$ & CCW & $0.0000$ & $2.7785$ & $55.01$ \\
 Orden $H_x(0.7)R(45^\circ)$ & $+1.0000$ & $+24.0000$ & $24.0000$ & $24.0000$ & CCW & $0.0000$ & $2.6226$ & $76.23$ \\
 Composición 4 pasos & $+1.2000$ & $+28.8000$ & $28.8000$ & $28.8000$ & CCW & $0.0000$ & $2.5037$ & $46.85$ \\
-Singular $S(1.0, 0.0)$ & $0.0000$ & $0.0000$ & $0.0000$ & $0.0000$ & Deg. & $0.0000^\dagger$ & $0.0000^\dagger$ & $0.00$ \\
+Singular $S(1.0, 0.0)$ & $0.0000$ & $0.0000$ & $0.0000$ & $0.0000$ & Deg. & $0.0000^\dagger$ & $0.0000^\dagger$ & Indef.$^\dagger$ \\
 Reflexión $\mathrm{Ref}_{30^\circ}$ & $-1.0000$ & $-24.0000$ & $24.0000$ & $24.0000$ & CW & $0.0000$ & $3.5777$ & $90.00$ \\
 \bottomrule
 \end{tabular}
-\notadocumental{$^\dagger$En el caso singular $S(1.0, 0.0)$, los segmentos $L'_1$ y $L'_2$ colapsan sobre el mismo segmento $(2,0)\to(10,0)$ del eje $X$, por lo que dejan de ser rectas paralelas distintas.}
+\notadocumental{$^\dagger$En el caso singular $S(1.0, 0.0)$, los segmentos $L'_1$ y $L'_2$ colapsan sobre el mismo segmento $(2,0)\to(10,0)$ del eje $X$ (dejan de ser rectas paralelas distintas) y la arista vertical $V_5V_0$ colapsa a longitud nula, dejando indefinido el ángulo en $V_0$.}
 \end{table}
 
 \subsection{Cizallamiento horizontal y reflexión respecto al eje vertical}
 
-Al aplicar el cizallamiento $H_x(0.7)$, cada punto se transforma según $(x', y') = (x + 0.7y, y)$. Los segmentos paralelos iniciales pasan a $L'_1:(0.600, -2.000)\to(11.400, 2.000)$ y $L'_2:(-2.200, -6.000)\to(8.600, -2.000)$, compartiendo exactamente el mismo vector director $u' = v' = (10.800, 4.000)$. En consecuencia, $\sigma(u', v') = 0.000000$ y las rectas permanecen paralelas y separadas ($d_\perp = 2.7785\text{ u}$). El área calculada se mantiene en $+24.0000\text{ u}^2$ con error numérico cero, mientras que el ángulo interno en $V_0$ desciende de $90.00^\circ$ a $55.01^\circ$ y la longitud de los segmentos crece de $8.9443\text{ u}$ a $11.5170\text{ u}$.
+Al aplicar el cizallamiento $H_x(0.7)$, cada punto se transforma según $(x', y') = (x + 0.7y, y)$. Los segmentos paralelos iniciales pasan a $L'_1:(0.600, -2.000)\to(11.400, 2.000)$ y $L'_2:(-2.200, -6.000)\to(8.600, -2.000)$, compartiendo exactamente el mismo vector director $u' = v' = (10.800, 4.000)$. En consecuencia, $\sigma(u', v') = 0.000000$ y las rectas permanecen paralelas y separadas ($d_\perp = 2.7785\text{ u}$). El área calculada se mantiene en $+24.0000\text{ u}^2$ con error numérico cero, mientras que el ángulo interno en $V_0$ desciende de $90.00^\circ$ a $55.01^\circ$, la arista vertical $V_5V_0$ se alarga de $5.0000\text{ u}$ a $6.1033\text{ u}$ ($+22.1\%$) y los segmentos pasan de $8.9443\text{ u}$ a $11.5170\text{ u}$.
 
 En la reflexión respecto al eje vertical ($\mathrm{Ref}_y$), la abscisa de todos los vértices cambia de signo (por ejemplo, $V_4=(5,7)$ se proyecta en $(-5,7)$). La fórmula del zapatero produce $A'_{\text{signo}} = -24.0000\text{ u}^2$ y $|A'| = 24.0000\text{ u}^2$: el área física, los ángulos y las longitudes permanecen inalterados, pero la orientación se invierte de antihoraria (CCW) a horaria (CW) en correspondencia con $\det(\mathrm{Ref}_y) = -1$ (Figura~\ref{fig:cizref}).
 
 \begin{figure}[H]
-\caption{Salida del laboratorio en rejilla $40\times 30$ para cizallamiento horizontal y reflexión vertical.}
+\caption{Salida del laboratorio en rejilla discreta $160\times 120$ ($4\text{ celdas/u}$) para cizallamiento horizontal y reflexión vertical.}
 \label{fig:cizref}
 \centering
 \includegraphics[width=0.92\textwidth]{fig_cizallamiento_reflexion.png}
-\notadocumental{Negro y gris representan el polígono y segmentos originales; azul y verde corresponden al resultado transformado; los puntos rojos destacan el origen y los vértices transformados.}
+\notadocumental{Los trazos discontinuos oscuros muestran el polígono y segmentos originales; los trazos continuos azul y verde de $2\text{ px}$ muestran el resultado transformado; la malla celeste corresponde a la cuadrícula transformada.}
 \end{figure}
 
 \subsection{Efecto del orden en la composición: no conmutatividad}
 
-Para contrastar la dependencia del orden se compararon las matrices compuestas $M_1 = R(45^\circ)\,H_x(0.7)$ (donde actúa primero $H_x$ y luego $R$) y $M_2 = H_x(0.7)\,R(45^\circ)$ (donde actúa primero $R$ y luego $H_x$):
+Para contrastar la dependencia del orden en la multiplicación matricial se compararon las composiciones $M_1 = R(45^\circ)\,H_x(0.7)$ (donde actúa primero $H_x$ y luego $R$) y $M_2 = H_x(0.7)\,R(45^\circ)$ (donde actúa primero $R$ y luego $H_x$):
 \begin{equation}
   M_1 = \begin{bmatrix} 0.7071 & -0.2121 & 0 \\ 0.7071 & 1.2021 & 0 \\ 0 & 0 & 1 \end{bmatrix},
   \qquad
@@ -274,7 +284,7 @@ En segundo lugar, un determinante negativo no representa un área física negati
 
 En tercer lugar, una matriz singular ($\det(A) = 0$) requiere tratamiento especial tanto en el análisis matemático como en el código. Geométricamente reduce la dimensión efectiva del espacio y destruye la biyectividad; computacionalmente, intentar calcular su inversa mediante $1/\det(A)$ ocasiona división por cero o valores indefinidos (\texttt{NaN}/\texttt{Inf}). Por ello es indispensable comprobar $|\det(A)| < \varepsilon$ antes de invertir e informar explícitamente la condición degenerada.
 
-Finalmente, debe reportarse una limitación inherente a la visualización raster en la rejilla discreta de $40\times 30$ celdas. Mientras las métricas numéricas operan en precisión \texttt{double} con errores del orden de $10^{-15}$, la representación en pantalla redondea cada vértice continuo al entero más próximo con \texttt{std::lround}, lo cual introduce un desplazamiento puramente visual de hasta $\pm 0.5$ unidades de rejilla y escalonamiento (\emph{aliasing}) en aristas inclinadas. Separar el cálculo analítico de la rasterización garantiza que las verificaciones cuantitativas no se vean contaminadas por la resolución discreta.
+Finalmente, debe reportarse una limitación inherente a la visualización raster en la rejilla discreta de $160\times 120$ celdas ($4$ celdas por unidad matemática). Mientras las métricas numéricas operan en precisión \texttt{double} con errores del orden de $10^{-15}$, la representación en pantalla redondea cada vértice continuo a la celda entera más próxima mediante \texttt{std::lround}, lo cual introduce un desplazamiento puramente visual de hasta $\pm 0.5$ celdas ($\pm 0.125$ unidades cartesianas) y escalonamiento (\emph{aliasing}) en aristas inclinadas. Separar el cálculo analítico de la rasterización garantiza que las verificaciones cuantitativas no se vean contaminadas por la resolución discreta.
 
 \section{Conclusiones}
 
@@ -282,7 +292,7 @@ Finalmente, debe reportarse una limitación inherente a la visualización raster
   \item Las transformaciones afines 2D representadas mediante matrices homogéneas $3\times 3$ y vectores columna ($p'=Mp$) unifican deformaciones, reflexiones y composiciones en un único modelo algebraico verificable tanto visual como numéricamente.
   \item Toda transformación afín invertible preserva el paralelismo ($\sigma = 0$), la colinealidad y las razones de segmentos colineales, mientras que longitudes y ángulos se alteran fuera de las isometrías; además, la composición no es conmutativa, como demostró la brecha de $4.2579\text{ u}$ en $V_4$ al intercambiar $R(45^\circ)$ y $H_x(0.7)$.
   \item El determinante de la parte lineal controla de forma simultánea tres propiedades críticas: el factor de escala de área ($|\det(A)|$, comprobado con error de $7.11\times 10^{-15}$ en la composición de cuatro pasos), la orientación del polígono (invertida cuando $\det(A) < 0$) y la invertibilidad, que se pierde por completo cuando $\det(A) = 0$ debido al colapso dimensional.
-  \item Combinar una rejilla discreta visible de $40\times 30$ celdas con cálculos continuos en doble precisión y un panel interactivo actualizado en consola permite contrastar en vivo la geometría ideal con su representación raster sin sacrificar rigor matemático.
+  \item Combinar una rejilla discreta visible de $160\times 120$ celdas ($4$ celdas por unidad) con cálculos continuos en doble precisión y un panel interactivo actualizado en consola permite contrastar en vivo la geometría ideal con su representación raster con alta nitidez y rigor matemático.
 \end{enumerate}
 
 \bibliographystyle{apalike}
@@ -303,7 +313,7 @@ cmake --build build -j
 ./build/lab_afines
 \end{verbatim}
 
-Al iniciar \texttt{./build/lab\_afines}, se abren simultáneamente dos vistas complementarias: la ventana gráfica de $1000\times 750$ píxeles (rejilla lógica $40\times 30$ con el origen cartesiano en rojo en el centro) y un panel compacto en la terminal. Para evitar que la consola acumule texto extenso durante la interacción, cada pulsación de tecla limpia la pantalla de la terminal y redibuja en el mismo lugar el menú de opciones seguido de los valores activos (orden aplicado, parámetros actuales, matriz compuesta $3\times 3$, $\det(A)$, áreas, orientación, paralelismo y vértice de referencia $V_4$).
+Al iniciar \texttt{./build/lab\_afines}, se abren simultáneamente dos vistas complementarias: la ventana gráfica de $1280\times 960$ píxeles (rejilla discreta $160\times 120$ a $4$ celdas por unidad matemática con el origen cartesiano en el centro) y un panel compacto en la terminal. Para evitar que la consola acumule texto extenso durante la interacción, cada pulsación de tecla limpia la pantalla de la terminal y redibuja en el mismo lugar el menú de opciones seguido de los valores activos (orden aplicado, parámetros actuales, matriz compuesta $3\times 3$, $\det(A)$, áreas, orientación, paralelismo, los seis vértices y el vértice seleccionado).
 
 \begin{table}[H]
 \caption{Controles de interacción disponibles durante la ejecución de \texttt{lab\_afines}.}
@@ -317,8 +327,8 @@ Tecla & Efecto en la escena y en el panel de consola \\
 \midrule
 0 & Muestra la escena base sin deformación (matriz identidad). \\
 1 / 2 & Activa el cizallamiento horizontal $H_x(k_x)$ o vertical $H_y(k_y)$. \\
-3 / 4 & Activa la reflexión respecto al eje vertical $\mathrm{Ref}_y$ o respecto a la recta oblicua $\mathrm{Ref}_\phi$. \\
-5 & Superpone $R(\theta)H_x(k_x)$ (azul) y $H_x(k_x)R(\theta)$ (naranja) mostrando la brecha en $V_4$. \\
+3 / 4 & Activa la reflexión en eje vertical/horizontal ($\mathrm{Ref}_y/\mathrm{Ref}_x$ con \texttt{F}) o en recta oblicua $\mathrm{Ref}_\phi$. \\
+5 & Superpone $R(\theta)H_x(k_x)$ (azul) y $H_x(k_x)R(\theta)$ (naranja) mostrando la brecha en el vértice seleccionado. \\
 6 & Aplica la composición de cuatro pasos $T\cdot R\cdot S\cdot H_x$ con $|\det(A)| \neq 1$. \\
 7 & Aplica el caso degenerado singular $S(s_x, 0)$ mostrando el colapso y la alerta de no invertibilidad. \\
 8 & Activa el modo interactivo libre ($H_x \to S \to \mathrm{Ref}_y? \to R \to T$). \\
@@ -327,13 +337,13 @@ C & Abre en consola el constructor para concatenar $N \ge 3$ transformaciones co
 A, D / J, L & Ajusta en vivo el cizallamiento horizontal $k_x$ o vertical $k_y$ en pasos de $0.1$. \\
 Z, X / S, W & Ajusta en vivo los factores de escala $s_x$ o $s_y$ en pasos de $0.1$ (permite llevar $s_y$ a $0$). \\
 Q, E / Flechas & Modifica el ángulo de rotación (o $\phi$ en modo 4) en pasos de $5^\circ$ y la traslación $(t_x, t_y)$. \\
-F / O & Alterna la reflexión vertical o invierte el orden de composición en el modo 8. \\
-G / M / H & Muestra u oculta la rejilla de píxeles, la cuadrícula transformada o la figura original. \\
+F / O & Alterna la reflexión ($\mathrm{Ref}_y/\mathrm{Ref}_x$) o invierte el orden de composición en el modo 8. \\
+G / M / H / V & Alterna la rejilla discreta, la cuadrícula transformada, la figura original o el vértice seleccionado ($V_0$--$V_5$). \\
 R / ESC & Restaura los parámetros por defecto o cierra la aplicación. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Para verificar todas las pruebas numéricas de manera automatizada sin abrir ventana gráfica, se incluye el ejecutable auxiliar \texttt{./build/test\_experiments ../experimentos}, el cual valida cada propiedad con tolerancia $10^{-9}$ y exporta los resultados reproducibles en texto y JSON.
+Para verificar todas las pruebas numéricas de manera automatizada sin abrir ventana gráfica, se incluye el ejecutable auxiliar \texttt{./build/test\_experiments ../experimentos}, el cual valida cada propiedad con tolerancia $10^{-9}$ y exporta los resultados reproducibles en texto y JSON. Asimismo, se dispone de una versión equivalente autocontenida en un único archivo fuente dentro de \texttt{src\_unico/main.cpp} (\texttt{./build/lab\_afines\_unico {-}{-}self-test}).
 
 \end{document}

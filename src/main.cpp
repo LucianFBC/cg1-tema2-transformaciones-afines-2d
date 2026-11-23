@@ -19,8 +19,8 @@
 // UNSAAC - Computacion Grafica I (IF455AIN) - Semestre 2026-02
 //
 // Estilo visual basado en el entorno de laboratorio del curso:
-//   - Rejilla discreta 40 x 30 (ventana 1000 x 750) con pixeles visibles
-//     (margen m = 0.08) y opcion G para mostrar u ocultar la rejilla.
+//   - Rejilla discreta 160 x 120 (4 px/unidad, ventana 1280 x 960, 8x8 px/celda)
+//     con opcion G para mostrar u ocultar la rejilla discreta y por unidad.
 //   - Rasterizacion propia mediante putPixel()/putPoint(), Bresenham y
 //     drawPolygon() sin glTranslatef/glRotatef/glScalef ni GL_POLYGON.
 //   - Panel compacto en consola que limpia la salida anterior y muestra
@@ -32,10 +32,10 @@ namespace {
 cg::BaseScene gScene;
 cg::RasterCanvas gCanvas(cg::GRID_WIDTH, cg::GRID_HEIGHT);
 
-bool gShowPixelGrid = true;         // Tecla G: rejilla de pixeles drawGrid()
-bool gShowTransformedLattice = true;// Tecla M: cuadricula local transformada
-bool gShowOriginal = true;          // Tecla H: figura original de referencia
-int gMode = 0;                      // 0..8 o 9 (cadena personalizada tecla C)
+bool gShowPixelGrid = true;          // Tecla G: rejilla de pixeles drawGrid()
+bool gShowTransformedLattice = true; // Tecla M: cuadricula local transformada
+bool gShowOriginal = true;           // Tecla H: figura original de referencia
+int gMode = 0;                       // 0..8 o 9 (cadena personalizada tecla C)
 
 // Parametros interactivos editables en vivo
 struct LiveParams {
@@ -48,6 +48,7 @@ struct LiveParams {
     double tx = 2.0;
     double ty = -2.0;
     bool reflectY = false;
+    bool reflectX = false;
     bool reverseOrder = false;
 } gParams;
 
@@ -78,9 +79,15 @@ cg::ExperimentConfig buildActiveConfig() {
             cfg.steps = {{"Hy(" + fmtNum(gParams.shearY) + ")", cg::shearYMatrix(gParams.shearY)}};
             break;
         case 3:
-            cfg.id = "REF_Y";
-            cfg.title = "3: Reflexion respecto al eje vertical (Ref_y)";
-            cfg.steps = {{"Ref_y", cg::reflectionYMatrix()}};
+            if (gParams.reflectX) {
+                cfg.id = "REF_X";
+                cfg.title = "3: Reflexion respecto al eje horizontal (Ref_x)";
+                cfg.steps = {{"Ref_x", cg::reflectionXMatrix()}};
+            } else {
+                cfg.id = "REF_Y";
+                cfg.title = "3: Reflexion respecto al eje vertical (Ref_y)";
+                cfg.steps = {{"Ref_y", cg::reflectionYMatrix()}};
+            }
             break;
         case 4:
             cfg.id = "REF_PHI";
@@ -134,6 +141,7 @@ cg::ExperimentConfig buildActiveConfig() {
             st.push_back({"S(" + fmtNum(gParams.scaleX) + "," + fmtNum(gParams.scaleY) + ")",
                           cg::scalingMatrix(gParams.scaleX, gParams.scaleY)});
             if (gParams.reflectY) st.push_back({"Ref_y", cg::reflectionYMatrix()});
+            if (gParams.reflectX) st.push_back({"Ref_x", cg::reflectionXMatrix()});
             st.push_back({"R(" + fmtNum(gParams.angleDeg, 1) + ")", cg::rotationMatrix(gParams.angleDeg)});
             st.push_back({"T(" + fmtNum(gParams.tx, 1) + "," + fmtNum(gParams.ty, 1) + ")",
                           cg::translationMatrix(gParams.tx, gParams.ty)});
@@ -156,6 +164,8 @@ void setModeDefaults(int mode) {
         gParams.shearX = 0.7;
     } else if (mode == 2) {
         gParams.shearY = 0.4;
+    } else if (mode == 3) {
+        gParams.reflectX = false;
     } else if (mode == 4) {
         gParams.refPhiDeg = 30.0;
     } else if (mode == 5) {
@@ -179,13 +189,13 @@ void setModeDefaults(int mode) {
         gParams.tx = 1.0;
         gParams.ty = -1.0;
         gParams.reflectY = false;
+        gParams.reflectX = false;
         gParams.reverseOrder = false;
     }
 }
 
 // Limpia la consola y redibuja el menu compacto + estado en vivo de la opcion activa
 void renderTerminalDashboard() {
-    // Secuencia ANSI: limpia pantalla y coloca cursor en (1,1)
     std::cout << "\033[2J\033[H";
 
     const auto cfg = buildActiveConfig();
@@ -193,15 +203,16 @@ void renderTerminalDashboard() {
     const auto rep = cg::evaluateTransform(gScene, M1);
 
     std::cout << "============================================================================\n"
-              << "  LABORATORIO DE TRANSFORMACIONES AFINES 2D  |  Rejilla 40x30 (Origen 20,15)\n"
+              << "  LABORATORIO DE TRANSFORMACIONES AFINES 2D | Rejilla 160x120 (4 px/u)\n"
               << "============================================================================\n"
-              << "MODOS : [0] Base  [1] Hx  [2] Hy  [3] Ref_y  [4] Ref_phi  [5] Orden R*Hx/Hx*R\n"
+              << "MODOS : [0] Base  [1] Hx  [2] Hy  [3] Ref_y/x  [4] Ref_phi  [5] Orden R*Hx\n"
               << "        [6] Cambio de area (4 pasos)  [7] Singular  [8] Libre  [C] Cadena N>=3\n"
               << "AJUSTE: [+/-] Parametro activo | [A/D] kx | [J/L] ky | [Z/X] sx | [W/S] sy\n"
-              << "        [Q/E] angulo | [Flechas] tx,ty | [F] Ref_y | [O] Invertir orden\n"
+              << "        [Q/E] angulo | [Flechas] tx,ty | [F] Ref_y/x | [O] Invertir orden\n"
               << "VISTA : [G] Rejilla(" << (gShowPixelGrid ? "ON" : "OFF")
               << ") | [M] Cuadricula(" << (gShowTransformedLattice ? "ON" : "OFF")
               << ") | [H] Original(" << (gShowOriginal ? "ON" : "OFF")
+              << ") | [V] Vertice(" << gScene.vertexNames[gScene.highlightVertexIndex]
               << ") | [R] Reset | [ESC] Salir\n"
               << "----------------------------------------------------------------------------\n";
 
@@ -237,11 +248,26 @@ void renderTerminalDashboard() {
               << " | sep=" << rep.transParallel.lineSeparation
               << " | " << rep.transParallel.status << "\n";
 
+    std::cout << "VERT.  : ";
+    for (std::size_t i = 0; i < gScene.polygon.size(); ++i) {
+        if (i == gScene.highlightVertexIndex) std::cout << "*";
+        std::cout << gScene.vertexNames[i] << cg::formatPoint(gScene.polygon[i], 0)
+                  << "->" << cg::formatPoint(rep.transPoly[i], 2);
+        if (i == 2) std::cout << "\n         ";
+        else if (i + 1 < gScene.polygon.size()) std::cout << " | ";
+    }
+    std::cout << "\n";
+
     const std::size_t idx = gScene.highlightVertexIndex;
-    std::cout << "REF V4 : " << cg::formatPoint(gScene.polygon[idx], 2)
+    std::cout << "SEL " << gScene.vertexNames[idx] << " : " << cg::formatPoint(gScene.polygon[idx], 2)
               << " -> " << cg::formatPoint(rep.transPoly[idx], 4)
-              << "   |   Angulo V0: " << std::setprecision(2) << rep.origAngleAtV0
-              << " -> " << rep.transAngleAtV0 << " deg\n";
+              << " | Ang V0: " << std::setprecision(2) << rep.origAngleAtV0 << "->";
+    if (rep.transAngleAtV0Defined) {
+        std::cout << rep.transAngleAtV0 << " deg";
+    } else {
+        std::cout << "INDEF.";
+    }
+    std::cout << " | |V5-V0|: " << rep.origEdgeV5V0 << "->" << rep.transEdgeV5V0 << "\n";
 
     if (cfg.hasSecondBranch) {
         const cg::Matrix3 M2 = cg::composeInApplicationOrder(cfg.secondSteps);
@@ -249,9 +275,9 @@ void renderTerminalDashboard() {
         const double gap = cg::distanceBetween(rep.transPoly[idx], rep2.transPoly[idx]);
         std::cout << "----------------------------------------------------------------------------\n"
                   << "RAMA 2 (Naranja) : " << cg::formatMatrixProductOrder(cfg.secondSteps) << "\n"
-                  << "V4 Azul=" << cg::formatPoint(rep.transPoly[idx], 4)
-                  << " | V4 Naranja=" << cg::formatPoint(rep2.transPoly[idx], 4)
-                  << " | ||Delta V4|| = " << std::setprecision(4) << gap << "\n";
+                  << gScene.vertexNames[idx] << " Azul=" << cg::formatPoint(rep.transPoly[idx], 4)
+                  << " | " << gScene.vertexNames[idx] << " Naranja=" << cg::formatPoint(rep2.transPoly[idx], 4)
+                  << " | ||Delta " << gScene.vertexNames[idx] << "|| = " << std::setprecision(4) << gap << "\n";
     }
     std::cout << "============================================================================\n"
               << std::flush;
@@ -280,53 +306,74 @@ void runConsoleChainBuilder() {
             return;
         }
         if (op == 1) {
-            double x, y; std::cout << "  tx ty: "; std::cin >> x >> y;
+            double x = 0.0, y = 0.0;
+            std::cout << "  tx ty: ";
+            if (!(std::cin >> x >> y)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"T(" + fmtNum(x, 1) + "," + fmtNum(y, 1) + ")", cg::translationMatrix(x, y)});
         } else if (op == 2) {
-            double d; std::cout << "  grados: "; std::cin >> d;
+            double d = 0.0;
+            std::cout << "  grados: ";
+            if (!(std::cin >> d)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"R(" + fmtNum(d, 1) + ")", cg::rotationMatrix(d)});
         } else if (op == 3) {
-            double sx, sy; std::cout << "  sx sy: "; std::cin >> sx >> sy;
+            double sx = 1.0, sy = 1.0;
+            std::cout << "  sx sy: ";
+            if (!(std::cin >> sx >> sy)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"S(" + fmtNum(sx) + "," + fmtNum(sy) + ")", cg::scalingMatrix(sx, sy)});
         } else if (op == 4) {
-            double k; std::cout << "  k: "; std::cin >> k;
+            double k = 0.0;
+            std::cout << "  k: ";
+            if (!(std::cin >> k)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"Hx(" + fmtNum(k) + ")", cg::shearXMatrix(k)});
         } else if (op == 5) {
-            double k; std::cout << "  k: "; std::cin >> k;
+            double k = 0.0;
+            std::cout << "  k: ";
+            if (!(std::cin >> k)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"Hy(" + fmtNum(k) + ")", cg::shearYMatrix(k)});
         } else if (op == 6) {
             chain.push_back({"Ref_x", cg::reflectionXMatrix()});
         } else if (op == 7) {
             chain.push_back({"Ref_y", cg::reflectionYMatrix()});
         } else if (op == 8) {
-            double phi; std::cout << "  phi (grados): "; std::cin >> phi;
+            double phi = 0.0;
+            std::cout << "  phi (grados): ";
+            if (!(std::cin >> phi)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"Ref(" + fmtNum(phi, 1) + ")", cg::reflectionLineMatrix(phi)});
+        } else {
+            std::cout << "  Opcion invalida (use 1..8). Intente de nuevo.\n";
+            --i;
         }
     }
 
-    gCustomChain = std::move(chain);
-    gMode = 9;
+    if (!chain.empty()) {
+        gCustomChain = std::move(chain);
+        gMode = 9;
+    }
     renderTerminalDashboard();
 }
 
-// Rejilla de pixeles del curso (drawGrid), activable con G
+// Rejilla de pixeles del curso (drawGrid), activable con G.
+// Dibuja sub-rejilla discreta (160x120) y rejilla por unidad matematica (cada 4 celdas).
 void drawPixelGridOpenGL() {
     if (!gShowPixelGrid) return;
-    glColor3f(cg::COL_GRID_LINE.r, cg::COL_GRID_LINE.g, cg::COL_GRID_LINE.b);
     glLineWidth(1.0f);
     glBegin(GL_LINES);
     for (int x = 0; x <= cg::GRID_WIDTH; ++x) {
+        const cg::Color c = (x % cg::PX_PER_UNIT == 0) ? cg::COL_GRID_LINE : cg::COL_GRID_SUB;
+        glColor3f(c.r, c.g, c.b);
         glVertex2f(static_cast<float>(x), 0.0f);
         glVertex2f(static_cast<float>(x), static_cast<float>(cg::GRID_HEIGHT));
     }
     for (int y = 0; y <= cg::GRID_HEIGHT; ++y) {
+        const cg::Color c = (y % cg::PX_PER_UNIT == 0) ? cg::COL_GRID_LINE : cg::COL_GRID_SUB;
+        glColor3f(c.r, c.g, c.b);
         glVertex2f(0.0f, static_cast<float>(y));
         glVertex2f(static_cast<float>(cg::GRID_WIDTH), static_cast<float>(y));
     }
     glEnd();
 }
 
-// Dibuja exclusivamente las celdas logicas pintadas por putPoint() con margen m = 0.08
+// Dibuja exclusivamente las celdas logicas pintadas por putPoint() con margen m = 0.06
 // (fiel a putPixel del Examen de Laboratorio; GL_LINES solo se usa en drawGrid()).
 void flushCanvasToOpenGL(const cg::RasterCanvas& canvas) {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -387,6 +434,9 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
     } else if (action == GLFW_PRESS && key == GLFW_KEY_H) {
         gShowOriginal = !gShowOriginal;
         changed = true;
+    } else if (action == GLFW_PRESS && key == GLFW_KEY_V) {
+        gScene.highlightVertexIndex = (gScene.highlightVertexIndex + 1) % gScene.polygon.size();
+        changed = true;
     } else if (action == GLFW_PRESS && key == GLFW_KEY_R) {
         gParams = LiveParams{};
         setModeDefaults(gMode == 9 ? 0 : gMode);
@@ -428,8 +478,12 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
     else if (key == GLFW_KEY_UP)    { gParams.ty += 0.5; changed = true; }
     else if (key == GLFW_KEY_DOWN)  { gParams.ty -= 0.5; changed = true; }
     else if (action == GLFW_PRESS && key == GLFW_KEY_F) {
-        gParams.reflectY = !gParams.reflectY;
-        gMode = 8;
+        if (gMode == 3) {
+            gParams.reflectX = !gParams.reflectX;
+        } else {
+            gParams.reflectY = !gParams.reflectY;
+            gMode = 8;
+        }
         changed = true;
     } else if (action == GLFW_PRESS && key == GLFW_KEY_O) {
         gParams.reverseOrder = !gParams.reverseOrder;
@@ -463,11 +517,11 @@ int exportAllPresetsToPPM(const std::string& outDir) {
     for (const auto& exp : presets) {
         cg::renderExperimentToCanvas(canvas, gScene, exp, true, true);
         const std::string filePath = outDir + "/" + exp.id + ".ppm";
-        if (!canvas.savePPM(filePath, true, 25)) {
+        if (!canvas.savePPM(filePath, true, cg::CELL_PX)) {
             std::cerr << "Error guardando " << filePath << "\n";
             return EXIT_FAILURE;
         }
-        std::cout << "Exportado raster real 40x30 (con rejilla): " << filePath << "\n";
+        std::cout << "Exportado raster real 160x120 (4 px/u, 1280x960): " << filePath << "\n";
     }
     return EXIT_SUCCESS;
 }

@@ -58,7 +58,12 @@ int main(int argc, char** argv) {
 
         std::ofstream txtOut(outDir + "/resumen_experimentos.txt");
         std::ofstream jsonOut(outDir + "/resultados_experimentos.json");
-        jsonOut << "{\n  \"base_polygon\": [";
+        jsonOut << "{\n  \"grid_width\": " << cg::GRID_WIDTH
+                << ",\n  \"grid_height\": " << cg::GRID_HEIGHT
+                << ",\n  \"px_per_unit\": " << cg::PX_PER_UNIT
+                << ",\n  \"window_width\": " << cg::WINDOW_WIDTH
+                << ",\n  \"window_height\": " << cg::WINDOW_HEIGHT
+                << ",\n  \"base_polygon\": [";
         for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
             if (i > 0) jsonOut << ", ";
             writeJsonPoint(jsonOut, scene.polygon[i]);
@@ -109,8 +114,11 @@ int main(int argc, char** argv) {
                     << "      \"parallel_status\": \"" << rep.transParallel.status << "\",\n"
                     << "      \"angle_v0_orig\": " << rep.origAngleAtV0 << ",\n"
                     << "      \"angle_v0_trans\": " << rep.transAngleAtV0 << ",\n"
+                    << "      \"angle_v0_defined\": " << (rep.transAngleAtV0Defined ? "true" : "false") << ",\n"
                     << "      \"edge_v0v1_orig\": " << rep.origEdgeV0V1 << ",\n"
                     << "      \"edge_v0v1_trans\": " << rep.transEdgeV0V1 << ",\n"
+                    << "      \"edge_v5v0_orig\": " << rep.origEdgeV5V0 << ",\n"
+                    << "      \"edge_v5v0_trans\": " << rep.transEdgeV5V0 << ",\n"
                     << "      \"trans_polygon\": [";
             for (std::size_t i = 0; i < rep.transPoly.size(); ++i) {
                 if (i > 0) jsonOut << ", ";
@@ -134,6 +142,8 @@ int main(int argc, char** argv) {
                 "Cizallamiento: L1' y L2' deben seguir siendo paralelos distintos");
         require(std::abs(repShear.transAngleAtV0 - 90.0) > 10.0,
                 "Cizallamiento: el angulo recto en V0 debe alterarse");
+        require(std::abs(repShear.transEdgeV5V0 - std::hypot(3.5, 5.0)) < 1e-9,
+                "Cizallamiento: la arista vertical V5-V0 debe alargarse a sqrt(37.25)");
 
         require(std::abs(repRefY.detA + 1.0) < 1e-9, "Reflexion vertical: det(Ref_y) debe ser -1");
         require(std::abs(repRefY.transSignedArea + 24.0) < 1e-9, "Reflexion vertical: area signo = -24");
@@ -164,6 +174,7 @@ int main(int argc, char** argv) {
         require(std::abs(repSing.transAbsArea) < 1e-9, "Caso singular: area debe ser 0");
         cg::Matrix3 dummyInv{};
         require(!cg::tryInvertAffine(repSing.M, dummyInv), "Caso singular: tryInvertAffine debe rechazarla");
+        require(!repSing.transAngleAtV0Defined, "Caso singular: angulo en V0 debe ser indefinido");
         require(repSing.transParallel.coincident, "Caso singular: L1' y L2' colapsan sobre y = 0");
 
         const double c60 = std::cos(60.0 * cg::PI / 180.0);

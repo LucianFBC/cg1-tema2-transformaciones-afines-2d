@@ -3,7 +3,7 @@
 UNSAAC - Computacion Grafica I (IF455AIN) - Semestre 2026-02
 Tema 2: Transformaciones afines, deformacion y propiedades geometricas.
 
-Implementacion autocontenida en un unico archivo fuente (`main.cpp`) en C++17 con OpenGL 2.1, GLFW 3 y rasterizacion propia sobre rejilla 40x30 (`putPixel()` / `putPoint()`, Bresenham y `drawPolygon()`, margen 0.08 y `drawGrid()`).
+Implementacion autocontenida en un unico archivo fuente (`main.cpp`) en C++17 con OpenGL 2.1, GLFW 3 y rasterizacion propia sobre rejilla 160x120 (4 px/unidad, ventana 1280x960, `putPixel()` / `putPoint()`, Bresenham y `drawPolygon()`, margen 0.06 y `drawGrid()`).
 
 ## Compilacion y autoprueba (WSL2 Ubuntu)
 
@@ -40,5 +40,6 @@ cmake --build build -j
 - `G`: Mostrar u ocultar rejilla de pixeles `drawGrid()`
 - `M`: Mostrar u ocultar cuadricula local transformada
 - `H`: Mostrar u ocultar figura original de referencia
+- `V`: Rotar el vertice de referencia seleccionado (`V0`..`V5`)
 - `R`: Restablecer parametros del modo activo
 - `ESC`: Salir

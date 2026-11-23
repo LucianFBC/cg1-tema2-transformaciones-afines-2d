@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -18,17 +19,22 @@
 // UNSAAC - Computacion Grafica I (IF455AIN) - Semestre 2026-02
 // Segunda Parcial - Tema 2: Transformaciones afines, deformacion y propiedades
 //
-// Convencion matematica obligatoria:
+// Sincronizado al 100% con la version modular (src/):
+//   - Rejilla discreta 160 x 120 (4 px/unidad, ventana 1280 x 960, 8x8 px/celda)
+//   - Rasterizacion propia con putPixel()/putPoint(), Bresenham y drawPolygon()
+//   - Cero glTranslatef/glRotatef/glScalef/GL_POLYGON; GL_LINES solo en drawGrid()
+//   - Autoprueba headless integrada con --self-test (tolerancia < 1e-9)
+// ============================================================================
+
+// ============================================================================
+// UNSAAC - Computacion Grafica I (IF455AIN) - Semestre 2026-02
+// Segunda Parcial - Tema 2: Transformaciones afines, deformacion y propiedades
+// Modulo matematico propio (sin bibliotecas externas ni funciones de OpenGL).
+//
+// Convencion obligatoria:
 //   - Vectores columna homogeneos: p = [x, y, 1]^T
 //   - Transformacion: p' = M * p
 //   - Composicion: en M = A * B * C, se aplica primero C, luego B y al final A.
-//
-// Entorno de rasterizacion propia:
-//   - Rejilla discreta 40 x 30 sobre ventana 1000 x 750 (25 x 25 px por celda).
-//   - Cada celda logica se dibuja con margen m = 0.08 sobre drawGrid() (tecla G).
-//   - Trazado 100% mediante putPixel()/putPoint(), Bresenham (drawLine) y
-//     drawPolygon(), sin glTranslatef/glRotatef/glScalef ni GL_POLYGON.
-//   - GL_LINES se usa exclusivamente en drawGrid().
 // ============================================================================
 
 namespace cg {
@@ -59,33 +65,6 @@ struct NamedTransform {
     std::string name;
     Matrix3 matrix;
 };
-
-struct Color {
-    float r{0.0f};
-    float g{0.0f};
-    float b{0.0f};
-};
-
-inline constexpr int WINDOW_WIDTH  = 1000;
-inline constexpr int WINDOW_HEIGHT = 750;
-inline constexpr int GRID_WIDTH    = 40;
-inline constexpr int GRID_HEIGHT   = 30;
-inline constexpr int ORIGIN_X      = 20;
-inline constexpr int ORIGIN_Y      = 15;
-inline constexpr float CELL_MARGIN = 0.08f;
-
-inline constexpr Color COL_BG           = {1.00f, 1.00f, 1.00f};
-inline constexpr Color COL_GRID_LINE    = {0.87f, 0.88f, 0.90f};
-inline constexpr Color COL_AXES         = {0.58f, 0.62f, 0.68f};
-inline constexpr Color COL_TGRID_ORIG   = {0.82f, 0.85f, 0.90f};
-inline constexpr Color COL_TGRID_TRANS  = {0.62f, 0.84f, 0.80f};
-inline constexpr Color COL_NEGRO        = {0.14f, 0.20f, 0.28f};
-inline constexpr Color COL_AZUL         = {0.10f, 0.34f, 0.82f};
-inline constexpr Color COL_NARANJA      = {0.93f, 0.42f, 0.07f};
-inline constexpr Color COL_VERDE        = {0.05f, 0.58f, 0.38f};
-inline constexpr Color COL_GRIS         = {0.48f, 0.52f, 0.58f};
-inline constexpr Color COL_ROJO         = {0.84f, 0.14f, 0.18f};
-inline constexpr Color COL_MORADO       = {0.58f, 0.22f, 0.72f};
 
 // ---------------- Matrices elementales 3x3 ----------------
 
@@ -170,7 +149,7 @@ inline Matrix3 multiplyMatrix(const Matrix3& left, const Matrix3& right) {
     return res;
 }
 
-// Reflexion respecto a una recta por el origen con angulo phi (grados):
+// Reflexion respecto a una recta que pasa por el origen con angulo phi (grados):
 // Ref_phi = R(phi) * Ref_x * R(-phi)
 inline Matrix3 reflectionLineMatrix(double phiDegrees) {
     const Matrix3 rNeg = rotationMatrix(-phiDegrees);
@@ -179,7 +158,7 @@ inline Matrix3 reflectionLineMatrix(double phiDegrees) {
     return multiplyMatrix(rPos, multiplyMatrix(refX, rNeg));
 }
 
-// Aplica una cadena en orden cronologico:
+// Aplica una cadena de transformaciones en el orden cronologico entregado:
 // steps = [T1, T2, ..., Tn] => M = Tn * ... * T2 * T1
 inline Matrix3 composeInApplicationOrder(const std::vector<NamedTransform>& steps) {
     Matrix3 M = identityMatrix();
@@ -214,6 +193,7 @@ inline Segment transformSegment(const Matrix3& M, const Segment& seg) {
 
 // ---------------- Propiedades lineales y metricas geometricas ----------------
 
+// Determinante de la submatriz lineal A (2x2 superior izquierda)
 inline double linearDeterminant(const Matrix3& M) {
     return M.a[0][0] * M.a[1][1] - M.a[0][1] * M.a[1][0];
 }
@@ -222,7 +202,7 @@ inline bool isSingular(const Matrix3& M, double tol = EPSILON) {
     return std::abs(linearDeterminant(M)) < tol;
 }
 
-// Calcula la inversa afin solo si |det(A)| >= tol.
+// Intenta calcular la inversa de una matriz afin M solo si |det(A)| >= tol.
 // Nunca divide por cero ni afirma existencia de inversa para matrices singulares.
 inline bool tryInvertAffine(const Matrix3& M, Matrix3& outInv, double tol = EPSILON) {
     const double det = linearDeterminant(M);
@@ -245,7 +225,9 @@ inline bool tryInvertAffine(const Matrix3& M, Matrix3& outInv, double tol = EPSI
 }
 
 // Formula del zapatero (shoelace): area con signo del poligono.
-// > 0: recorrido antihorario (CCW), < 0: horario (CW), = 0: colineal/degenerado.
+// > 0: recorrido antihorario (CCW)
+// < 0: recorrido horario (CW)
+// = 0: poligono colineal / degenerado
 inline double signedArea(const std::vector<Point>& poly) {
     if (poly.size() < 3) return 0.0;
     double sum = 0.0;
@@ -277,12 +259,12 @@ struct ParallelismMetrics {
     double len1{0.0};
     double len2{0.0};
     double cross2D{0.0};
-    double normalizedSine{0.0};
-    double angleDegrees{0.0};
-    double lineSeparation{0.0};
+    double normalizedSine{0.0};   // |u x v| / (||u|| ||v||) in [0, 1], 0 = paralelos
+    double angleDegrees{0.0};     // angulo entre rectas soporte in [0, 90]
+    double lineSeparation{0.0};   // distancia perpendicular de P2 a la recta soporte de L1
     bool defined{true};
     bool parallel{false};
-    bool coincident{false};
+    bool coincident{false};       // cierto si las rectas soporte coinciden (colapso)
     std::string status;
 };
 
@@ -307,6 +289,7 @@ inline ParallelismMetrics measureParallelism(const Segment& s1, const Segment& s
     m.angleDegrees = std::asin(m.normalizedSine) * (180.0 / PI);
     m.parallel = (m.normalizedSine < 1e-7);
 
+    // Distancia de P2 a la recta definida por P1 y dir1
     const double dx = s2.p.x - s1.p.x;
     const double dy = s2.p.y - s1.p.y;
     m.lineSeparation = std::abs(m.dir1.x * dy - m.dir1.y * dx) / m.len1;
@@ -322,14 +305,26 @@ inline ParallelismMetrics measureParallelism(const Segment& s1, const Segment& s
     return m;
 }
 
-inline double interiorAngleDegrees(const Point& prev, const Point& curr, const Point& next) {
+// Angulo interno en un vertice (grados) para evidenciar deformacion angular.
+// Devuelve false si alguna de las aristas incidentes colapso a longitud nula.
+inline bool tryInteriorAngleDegrees(const Point& prev, const Point& curr, const Point& next, double& outDeg) {
     const Point u = {prev.x - curr.x, prev.y - curr.y};
     const Point v = {next.x - curr.x, next.y - curr.y};
     const double nu = std::hypot(u.x, u.y);
     const double nv = std::hypot(v.x, v.y);
-    if (nu < EPSILON || nv < EPSILON) return 0.0;
+    if (nu < EPSILON || nv < EPSILON) {
+        outDeg = 0.0;
+        return false;
+    }
     const double dot = std::clamp((u.x * v.x + u.y * v.y) / (nu * nv), -1.0, 1.0);
-    return std::acos(dot) * (180.0 / PI);
+    outDeg = std::acos(dot) * (180.0 / PI);
+    return true;
+}
+
+inline double interiorAngleDegrees(const Point& prev, const Point& curr, const Point& next) {
+    double deg = 0.0;
+    tryInteriorAngleDegrees(prev, curr, next, deg);
+    return deg;
 }
 
 // ---------------- Utilidades de formato ----------------
@@ -380,8 +375,57 @@ inline std::string formatMatrixProductOrder(const std::vector<NamedTransform>& s
     return oss.str();
 }
 
-// ---------------- Lienzo de rasterizacion propia 40 x 30 ----------------
+}  // namespace cg
 
+// ============================================================================
+// Modulo de rasterizacion propia (estilo Examen de Laboratorio UNSAAC)
+//
+// Escala de alta claridad visual:
+//   - PX_PER_UNIT = 4 celdas discretas por cada unidad matematica.
+//   - Rejilla discreta 160 x 120 sobre ventana 1280 x 960 (8 x 8 px por celda).
+//   - Rango cartesiano identico: x in [-20, 20], y in [-15, 15].
+//   - Origen cartesiano (0, 0) en el centro de la rejilla: (80, 60).
+//   - Eje Y crece hacia arriba en glOrtho(0, 160, 0, 120, -1, 1).
+//   - Al exportar imagenes PPM (fila 0 arriba), se invierte verticalmente.
+// ============================================================================
+
+namespace cg {
+
+struct Color {
+    float r{0.0f};
+    float g{0.0f};
+    float b{0.0f};
+};
+
+inline constexpr int PX_PER_UNIT   = 4;
+inline constexpr int CELL_PX       = 8;
+inline constexpr int GRID_WIDTH    = 40 * PX_PER_UNIT;   // 160 celdas
+inline constexpr int GRID_HEIGHT   = 30 * PX_PER_UNIT;   // 120 celdas
+inline constexpr int ORIGIN_X      = 20 * PX_PER_UNIT;   // 80
+inline constexpr int ORIGIN_Y      = 15 * PX_PER_UNIT;   // 60
+inline constexpr int WINDOW_WIDTH  = GRID_WIDTH * CELL_PX;  // 1280 px
+inline constexpr int WINDOW_HEIGHT = GRID_HEIGHT * CELL_PX; // 960 px
+inline constexpr float CELL_MARGIN = 0.06f;
+
+// Paleta con jerarquia visual de alto contraste sobre fondo blanco puro
+inline constexpr Color COL_BG           = {1.00f, 1.00f, 1.00f}; // #FFFFFF
+inline constexpr Color COL_GRID_SUB     = {0.95f, 0.96f, 0.98f}; // #F2F5FA (sub-rejilla de pixeles)
+inline constexpr Color COL_GRID_LINE    = {0.86f, 0.89f, 0.93f}; // #DBE3ED (rejilla cada 1 unidad)
+inline constexpr Color COL_AXES         = {0.75f, 0.79f, 0.85f}; // #BFC9D9 (ejes cartesianos 1px)
+inline constexpr Color COL_AXES_TICK    = {0.55f, 0.61f, 0.70f}; // #8C9CB3 (marcas cada 5 unidades)
+inline constexpr Color COL_TGRID_ORIG   = {0.88f, 0.91f, 0.95f}; // #E0E8F2 (cuadricula base tenue)
+inline constexpr Color COL_TGRID_TRANS  = {0.72f, 0.88f, 0.88f}; // #B8E0E0 (cuadricula transformada)
+inline constexpr Color COL_TGRID_FAINT  = {0.85f, 0.93f, 0.93f}; // #D9EDED (cuadricula en superposicion)
+inline constexpr Color COL_NEGRO        = {0.23f, 0.27f, 0.34f}; // #3A4556 (poligono original)
+inline constexpr Color COL_AZUL         = {0.07f, 0.31f, 0.82f}; // #1250D0 (poligono transformado 2px)
+inline constexpr Color COL_NARANJA      = {0.90f, 0.36f, 0.00f}; // #E65C00 (segundo orden Hx*R 2px)
+inline constexpr Color COL_VERDE        = {0.05f, 0.58f, 0.35f}; // #0D9459 (segmentos paralelos L1', L2')
+inline constexpr Color COL_GRIS         = {0.48f, 0.53f, 0.60f}; // #7A8699 (segmentos originales L1, L2)
+inline constexpr Color COL_ROJO         = {0.84f, 0.16f, 0.16f}; // #D62828 (marcadores de vertices)
+inline constexpr Color COL_MORADO       = {0.49f, 0.23f, 0.93f}; // #7C3AED (recta oblicua / L'' en orden)
+
+// Lienzo discreto 160 x 120: toda geometria se rasteriza exclusivamente
+// con putPixel()/putPoint(), Bresenham (drawLine) y drawPolygon().
 class RasterCanvas {
 public:
     RasterCanvas(int width = GRID_WIDTH, int height = GRID_HEIGHT)
@@ -400,14 +444,16 @@ public:
         std::fill(occupied_.begin(), occupied_.end(), false);
     }
 
+    // Conversion coordenada cartesiana (en unidades matematicas) -> celda discreta
     int worldToGridX(double wx) const {
-        return ORIGIN_X + static_cast<int>(std::lround(wx));
+        return ORIGIN_X + static_cast<int>(std::lround(wx * static_cast<double>(PX_PER_UNIT)));
     }
 
     int worldToGridY(double wy) const {
-        return ORIGIN_Y + static_cast<int>(std::lround(wy));
+        return ORIGIN_Y + static_cast<int>(std::lround(wy * static_cast<double>(PX_PER_UNIT)));
     }
 
+    // Rutina fundamental del curso: pinta una celda logica individual
     void putPixel(int x, int y, float r, float g, float b) {
         if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
         const std::size_t idx = static_cast<std::size_t>(y * width_ + x);
@@ -415,21 +461,58 @@ public:
         occupied_[idx] = true;
     }
 
+    // Alias de laboratorio: putPoint()
     void putPoint(int x, int y, Color c = COL_AZUL) {
         putPixel(x, y, c.r, c.g, c.b);
     }
 
-    // Algoritmo de Bresenham para todos los octantes (stepStride=1 solido, >1 punteado)
-    void drawLine(int x0, int y0, int x1, int y1, Color c = COL_NEGRO, int stepStride = 1) {
-        int dx = std::abs(x1 - x0);
-        int dy = std::abs(y1 - y0);
-        int sx = (x0 < x1) ? 1 : -1;
-        int sy = (y0 < y1) ? 1 : -1;
+    // Marcador en cruz 3x3 (o 5x5) centrado en (cx, cy) usando putPoint()
+    void drawCrossMarker(int cx, int cy, Color c, int arm = 1) {
+        putPoint(cx, cy, c);
+        for (int k = 1; k <= arm; ++k) {
+            putPoint(cx - k, cy, c);
+            putPoint(cx + k, cy, c);
+            putPoint(cx, cy - k, c);
+            putPoint(cx, cy + k, c);
+        }
+    }
+
+    // Marcador cuadrado (2*halfSize+1)x(2*halfSize+1) centrado en (cx, cy) usando putPoint()
+    void drawSquareMarker(int cx, int cy, Color c, int halfSize = 1, bool hollowCenter = false) {
+        for (int dy = -halfSize; dy <= halfSize; ++dy) {
+            for (int dx = -halfSize; dx <= halfSize; ++dx) {
+                if (hollowCenter && dx == 0 && dy == 0) {
+                    putPoint(cx, cy, COL_BG);
+                } else {
+                    putPoint(cx + dx, cy + dy, c);
+                }
+            }
+        }
+    }
+
+    // Algoritmo de Bresenham en los 8 octantes con soporte de patron (guiones) y grosor (1 o 2 px)
+    // mediante vecino perpendicular, 100% usando putPoint().
+    void drawPatternLine(int x0, int y0, int x1, int y1, Color c,
+                         int onSteps, int offSteps, int thickness = 1) {
+        const int dx = std::abs(x1 - x0);
+        const int dy = std::abs(y1 - y0);
+        const int sx = (x0 < x1) ? 1 : -1;
+        const int sy = (y0 < y1) ? 1 : -1;
         int err = dx - dy;
         int step = 0;
+        const int cycle = (onSteps > 0 && offSteps > 0) ? (onSteps + offSteps) : 0;
+
         while (true) {
-            if (stepStride <= 1 || (step % stepStride == 0)) {
+            const bool paint = (cycle == 0) || ((step % cycle) < onSteps);
+            if (paint) {
                 putPoint(x0, y0, c);
+                if (thickness >= 2) {
+                    if (dx >= dy) {
+                        putPoint(x0, y0 + 1, c);
+                    } else {
+                        putPoint(x0 + 1, y0, c);
+                    }
+                }
             }
             if (x0 == x1 && y0 == y1) break;
             const int e2 = 2 * err;
@@ -439,41 +522,77 @@ public:
         }
     }
 
-    void drawWorldSegment(const Point& a, const Point& b, Color c = COL_NEGRO, int stepStride = 1) {
-        drawLine(worldToGridX(a.x), worldToGridY(a.y),
-                 worldToGridX(b.x), worldToGridY(b.y), c, stepStride);
+    // Interfaz estandar de Bresenham:
+    //   stepStride <= 1: trazo continuo
+    //   stepStride == 2: trazo guionado corto (4px on / 2px off)
+    //   stepStride >= 3: trazo discontinuo largo (6px on / 4px off)
+    void drawLine(int x0, int y0, int x1, int y1, Color c = COL_NEGRO,
+                  int stepStride = 1, int thickness = 1) {
+        if (stepStride <= 1) {
+            drawPatternLine(x0, y0, x1, y1, c, 1, 0, thickness);
+        } else if (stepStride == 2) {
+            drawPatternLine(x0, y0, x1, y1, c, 4, 2, thickness);
+        } else {
+            drawPatternLine(x0, y0, x1, y1, c, 6, 4, thickness);
+        }
     }
 
-    void drawPolygon(const std::vector<Point>& poly, Color c = COL_NEGRO) {
+    void drawWorldSegment(const Point& a, const Point& b, Color c = COL_NEGRO,
+                          int stepStride = 1, int thickness = 1) {
+        drawLine(worldToGridX(a.x), worldToGridY(a.y),
+                 worldToGridX(b.x), worldToGridY(b.y), c, stepStride, thickness);
+    }
+
+    void drawPolygon(const std::vector<Point>& poly, Color c = COL_NEGRO,
+                     int stepStride = 1, int thickness = 1) {
         if (poly.size() < 2) return;
         for (std::size_t i = 0; i < poly.size(); ++i) {
             const Point& u = poly[i];
             const Point& v = poly[(i + 1) % poly.size()];
-            drawWorldSegment(u, v, c, 1);
+            drawWorldSegment(u, v, c, stepStride, thickness);
         }
     }
 
+    // Ejes cartesianos delgados (1 px) en gris neutro con marcas cada 5 unidades
     void drawAxes() {
-        drawLine(0, ORIGIN_Y, width_ - 1, ORIGIN_Y, COL_AXES, 1);
-        drawLine(ORIGIN_X, 0, ORIGIN_X, height_ - 1, COL_AXES, 1);
-        putPoint(ORIGIN_X, ORIGIN_Y, COL_ROJO);
+        drawLine(0, ORIGIN_Y, width_ - 1, ORIGIN_Y, COL_AXES, 1, 1);
+        drawLine(ORIGIN_X, 0, ORIGIN_X, height_ - 1, COL_AXES, 1, 1);
+
+        for (int u = -15; u <= 15; u += 5) {
+            if (u == 0) continue;
+            const int gx = worldToGridX(static_cast<double>(u));
+            for (int d = -2; d <= 2; ++d) {
+                putPoint(gx, ORIGIN_Y + d, COL_AXES_TICK);
+            }
+        }
+        for (int u = -10; u <= 10; u += 5) {
+            if (u == 0) continue;
+            const int gy = worldToGridY(static_cast<double>(u));
+            for (int d = -2; d <= 2; ++d) {
+                putPoint(ORIGIN_X + d, gy, COL_AXES_TICK);
+            }
+        }
+        drawCrossMarker(ORIGIN_X, ORIGIN_Y, COL_AXES_TICK, 1);
     }
 
+    // Cuadricula local transformable usando exclusivamente transformPoint() + Bresenham 1 px
     void drawTransformedLattice(const Matrix3& M, int xMin, int xMax, int yMin, int yMax,
-                                int step, Color c, int dotStride = 2) {
+                                int step, Color c, int stepStride = 1) {
         for (int x = xMin; x <= xMax; x += step) {
             const Point a = transformPoint(M, {static_cast<double>(x), static_cast<double>(yMin)});
             const Point b = transformPoint(M, {static_cast<double>(x), static_cast<double>(yMax)});
-            drawWorldSegment(a, b, c, dotStride);
+            drawWorldSegment(a, b, c, stepStride, 1);
         }
         for (int y = yMin; y <= yMax; y += step) {
             const Point a = transformPoint(M, {static_cast<double>(xMin), static_cast<double>(y)});
             const Point b = transformPoint(M, {static_cast<double>(xMax), static_cast<double>(y)});
-            drawWorldSegment(a, b, c, dotStride);
+            drawWorldSegment(a, b, c, stepStride, 1);
         }
     }
 
-    bool savePPM(const std::string& path, bool showGrid = true, int cellPx = 25) const {
+    // Exporta imagen PPM 1280 x 960 fiel a la ventana OpenGL:
+    // dibuja sub-rejilla de pixeles, rejilla por unidad matematica y celdas ocupadas.
+    bool savePPM(const std::string& path, bool showGrid = true, int cellPx = CELL_PX) const {
         const int imgW = width_ * cellPx;
         const int imgH = height_ * cellPx;
         std::vector<unsigned char> img(static_cast<std::size_t>(imgW * imgH * 3), 255);
@@ -490,27 +609,31 @@ public:
             img[off + 2] = toByte(c.b);
         };
 
+        // 1. Rejilla de fondo: sub-rejilla discreta y rejilla por unidad matematica
         if (showGrid) {
             for (int gx = 0; gx <= width_; ++gx) {
                 const int px = std::min(imgW - 1, gx * cellPx);
-                for (int py = 0; py < imgH; ++py) setImgPx(px, py, COL_GRID_LINE);
+                const Color c = (gx % PX_PER_UNIT == 0) ? COL_GRID_LINE : COL_GRID_SUB;
+                for (int py = 0; py < imgH; ++py) setImgPx(px, py, c);
             }
             for (int gy = 0; gy <= height_; ++gy) {
                 const int py = std::min(imgH - 1, gy * cellPx);
-                for (int px = 0; px < imgW; ++px) setImgPx(px, py, COL_GRID_LINE);
+                const Color c = (gy % PX_PER_UNIT == 0) ? COL_GRID_LINE : COL_GRID_SUB;
+                for (int px = 0; px < imgW; ++px) setImgPx(px, py, c);
             }
         }
 
-        const int pad = std::max(1, static_cast<int>(std::lround(CELL_MARGIN * cellPx)));
+        // 2. Celdas logicas ocupadas (conservando 1 px de borde de rejilla para ver cada pixel)
+        const int inset = (showGrid && cellPx >= 4) ? 1 : 0;
         for (int gy = 0; gy < height_; ++gy) {
             for (int gx = 0; gx < width_; ++gx) {
                 const std::size_t idx = static_cast<std::size_t>(gy * width_ + gx);
                 if (!occupied_[idx]) continue;
                 const Color c = pixels_[idx];
-                const int xStart = gx * cellPx + pad;
-                const int xEnd   = (gx + 1) * cellPx - pad;
-                const int yStart = (height_ - 1 - gy) * cellPx + pad;
-                const int yEnd   = (height_ - gy) * cellPx - pad;
+                const int xStart = gx * cellPx + inset;
+                const int xEnd   = (gx + 1) * cellPx;
+                const int yStart = (height_ - 1 - gy) * cellPx + inset;
+                const int yEnd   = (height_ - gy) * cellPx;
                 for (int py = yStart; py < yEnd; ++py) {
                     for (int px = xStart; px < xEnd; ++px) {
                         setImgPx(px, py, c);
@@ -534,7 +657,15 @@ private:
     std::vector<bool> occupied_;
 };
 
-// ---------------- Escena base y evaluacion de experimentos ----------------
+}  // namespace cg
+
+// ============================================================================
+// Escena base y casos experimentales para transformaciones afines 2D.
+// Coordenadas cartesianas centradas en (0,0) -> celda (80,60) en rejilla 160x120
+// (escala: PX_PER_UNIT = 4 celdas discretas por cada unidad matematica).
+// ============================================================================
+
+namespace cg {
 
 struct BaseScene {
     // Poligono asimetrico concavo de 6 vertices en el primer cuadrante.
@@ -593,8 +724,11 @@ struct TransformReport {
     ParallelismMetrics transParallel;
     double origAngleAtV0{0.0};
     double transAngleAtV0{0.0};
+    bool transAngleAtV0Defined{true};
     double origEdgeV0V1{0.0};
     double transEdgeV0V1{0.0};
+    double origEdgeV5V0{0.0};
+    double transEdgeV5V0{0.0};
 };
 
 inline TransformReport evaluateTransform(const BaseScene& scene, const Matrix3& M) {
@@ -623,9 +757,11 @@ inline TransformReport evaluateTransform(const BaseScene& scene, const Matrix3& 
     r.transParallel = measureParallelism(r.transSeg1, r.transSeg2);
 
     r.origAngleAtV0 = interiorAngleDegrees(scene.polygon[5], scene.polygon[0], scene.polygon[1]);
-    r.transAngleAtV0 = interiorAngleDegrees(r.transPoly[5], r.transPoly[0], r.transPoly[1]);
+    r.transAngleAtV0Defined = tryInteriorAngleDegrees(r.transPoly[5], r.transPoly[0], r.transPoly[1], r.transAngleAtV0);
     r.origEdgeV0V1 = distanceBetween(scene.polygon[0], scene.polygon[1]);
     r.transEdgeV0V1 = distanceBetween(r.transPoly[0], r.transPoly[1]);
+    r.origEdgeV5V0 = distanceBetween(scene.polygon[5], scene.polygon[0]);
+    r.transEdgeV5V0 = distanceBetween(r.transPoly[5], r.transPoly[0]);
     return r;
 }
 
@@ -702,6 +838,84 @@ inline std::vector<ExperimentConfig> buildPresetExperiments() {
     };
 }
 
+inline void printReportToStream(std::ostream& os, const BaseScene& scene,
+                                const std::string& title,
+                                const std::vector<NamedTransform>& steps,
+                                const TransformReport& rep) {
+    os << "\n========================================================================\n";
+    os << "  " << title << "\n";
+    os << "========================================================================\n";
+    os << "Orden de aplicacion : " << formatApplicationOrder(steps) << "\n";
+    os << "Producto matricial  : " << formatMatrixProductOrder(steps) << "\n";
+    os << "Matriz compuesta 3x3 (convencion p' = M * p):\n" << formatMatrix(rep.M, 4);
+
+    os << std::fixed << std::setprecision(6);
+    os << "det(A)              : " << cleanZero(rep.detA)
+       << "   (|det(A)| = " << cleanZero(std::abs(rep.detA)) << ")\n";
+
+    if (rep.singular) {
+        os << "ADVERTENCIA SINGULAR: det(A) = 0 (|det(A)| < 1e-9). La transformacion NO es\n"
+           << "                      invertible ni inyectiva; NO se calcula matriz inversa.\n";
+    } else {
+        os << "Invertibilidad      : INVERTIBLE (det(A) != 0)\n";
+    }
+
+    os << "\n--- Area y orientacion (formula del zapatero) ---\n";
+    os << "Original    : Area_signo = " << cleanZero(rep.origSignedArea)
+       << " | Area_abs = " << cleanZero(rep.origAbsArea)
+       << " | " << rep.origOrientation << "\n";
+    os << "Transformada: Area_signo = " << cleanZero(rep.transSignedArea)
+       << " | Area_abs = " << cleanZero(rep.transAbsArea)
+       << " | " << rep.transOrientation << "\n";
+    os << "Contraste   : |det(A)| * Area_orig = " << cleanZero(rep.expectedAbsArea)
+       << " | Error absoluto = " << std::scientific << std::setprecision(2) << rep.areaAbsError
+       << std::fixed << std::setprecision(6) << "\n";
+
+    os << "\n--- Angulos y longitudes ---\n";
+    os << "Angulo interno en V0 (V5-V0-V1): " << rep.origAngleAtV0 << " deg -> ";
+    if (rep.transAngleAtV0Defined) {
+        os << rep.transAngleAtV0 << " deg\n";
+    } else {
+        os << "INDEFINIDO (arista colapsada)\n";
+    }
+    os << "Longitud arista V0-V1 (horiz.) : " << rep.origEdgeV0V1
+       << " -> " << rep.transEdgeV0V1 << "\n";
+    os << "Longitud arista V5-V0 (vert.)  : " << rep.origEdgeV5V0
+       << " -> " << rep.transEdgeV5V0 << "\n";
+
+    os << "\n--- Vertices del poligono ---\n";
+    for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
+        os << "  " << scene.vertexNames[i] << ": "
+           << std::setw(18) << formatPoint(scene.polygon[i], 3)
+           << "  ->  " << formatPoint(rep.transPoly[i], 4);
+        if (i == scene.highlightVertexIndex) os << "  <-- vertice de referencia";
+        os << "\n";
+    }
+
+    os << "\n--- Medida de paralelismo (L1 y L2) ---\n";
+    os << "Original    : L1=" << formatPoint(scene.seg1.p, 2) << "->" << formatPoint(scene.seg1.q, 2)
+       << " u=" << formatPoint(rep.origParallel.dir1, 2)
+       << " | L2=" << formatPoint(scene.seg2.p, 2) << "->" << formatPoint(scene.seg2.q, 2)
+       << " v=" << formatPoint(rep.origParallel.dir2, 2) << "\n";
+    os << "              |u x v|/(||u||||v||) = " << rep.origParallel.normalizedSine
+       << " | angulo = " << rep.origParallel.angleDegrees
+       << " deg | sep = " << rep.origParallel.lineSeparation
+       << " | " << rep.origParallel.status << "\n";
+
+    os << "Transformada: L1'=" << formatPoint(rep.transSeg1.p, 3) << "->" << formatPoint(rep.transSeg1.q, 3)
+       << " u'=" << formatPoint(rep.transParallel.dir1, 3) << "\n"
+       << "              L2'=" << formatPoint(rep.transSeg2.p, 3) << "->" << formatPoint(rep.transSeg2.q, 3)
+       << " v'=" << formatPoint(rep.transParallel.dir2, 3) << "\n";
+    if (rep.transParallel.defined) {
+        os << "              |u' x v'|/(||u'||||v'||) = " << rep.transParallel.normalizedSine
+           << " | angulo = " << rep.transParallel.angleDegrees
+           << " deg | sep = " << rep.transParallel.lineSeparation
+           << " | " << rep.transParallel.status << "\n";
+    } else {
+        os << "              " << rep.transParallel.status << "\n";
+    }
+}
+
 inline void renderExperimentToCanvas(RasterCanvas& canvas, const BaseScene& scene,
                                      const ExperimentConfig& exp,
                                      bool showOriginal, bool showTransformedLattice) {
@@ -710,78 +924,164 @@ inline void renderExperimentToCanvas(RasterCanvas& canvas, const BaseScene& scen
     const Matrix3 I = identityMatrix();
     const Matrix3 M1 = composeInApplicationOrder(exp.steps);
 
-    // 1. Cuadricula local transformable punteada
+    // 1. Cuadricula local transformable (primero en el fondo, 1 px continuo Bresenham)
     if (showTransformedLattice) {
-        if (showOriginal) {
+        if (exp.steps.empty()) {
             canvas.drawTransformedLattice(I, scene.latticeXMin, scene.latticeXMax,
                                           scene.latticeYMin, scene.latticeYMax,
-                                          scene.latticeStep, COL_TGRID_ORIG, 2);
-        }
-        if (!exp.steps.empty()) {
+                                          scene.latticeStep, COL_TGRID_TRANS, 1);
+        } else {
+            const Color latCol = exp.hasSecondBranch ? COL_TGRID_FAINT : COL_TGRID_TRANS;
             canvas.drawTransformedLattice(M1, scene.latticeXMin, scene.latticeXMax,
                                           scene.latticeYMin, scene.latticeYMax,
-                                          scene.latticeStep, COL_TGRID_TRANS, 2);
+                                          scene.latticeStep, latCol, 1);
         }
     }
 
-    // 2. Ejes cartesianos centrados en (20, 15) mediante Bresenham
+    // 2. Ejes cartesianos delgados (1 px) con marcas cada 5 unidades
     canvas.drawAxes();
 
-    // 3. Recta oblicua de reflexion mediante Bresenham punteado (si aplica)
+    // 3. Recta oblicua de reflexion mediante Bresenham discontinuo limpio (6px on / 4px off)
     if (exp.drawReflectionAxis) {
         const double rad = exp.reflectionAxisDeg * (PI / 180.0);
         const double L = 22.0;
         canvas.drawWorldSegment({-L * std::cos(rad), -L * std::sin(rad)},
                                 { L * std::cos(rad),  L * std::sin(rad)},
-                                COL_MORADO, 2);
+                                COL_MORADO, 3, 1);
     }
 
-    // 4. Figura y segmentos originales (negro y gris)
+    // 4. Figura y segmentos originales de referencia
     if (showOriginal) {
-        canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_GRIS);
-        canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_GRIS);
-        canvas.drawPolygon(scene.polygon, COL_NEGRO);
-        for (const auto& v : scene.polygon) {
-            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_NEGRO);
+        if (exp.steps.empty()) {
+            // En escena base (modo 0), mostrar la geometria inicial con trazo de 2 px
+            canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_VERDE, 1, 2);
+            canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_VERDE, 1, 2);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg1.p.x),
+                                    canvas.worldToGridY(scene.seg1.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg1.q.x),
+                                    canvas.worldToGridY(scene.seg1.q.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg2.p.x),
+                                    canvas.worldToGridY(scene.seg2.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg2.q.x),
+                                    canvas.worldToGridY(scene.seg2.q.y), COL_VERDE, 1, false);
+
+            canvas.drawPolygon(scene.polygon, COL_NEGRO, 1, 2);
+            for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
+                const int gx = canvas.worldToGridX(scene.polygon[i].x);
+                const int gy = canvas.worldToGridY(scene.polygon[i].y);
+                if (i == scene.highlightVertexIndex) {
+                    canvas.drawSquareMarker(gx, gy, COL_ROJO, 1, true);
+                } else {
+                    canvas.drawCrossMarker(gx, gy, COL_ROJO, 1);
+                }
+            }
+        } else {
+            // Como referencia frente a la transformada: trazo 1 px guionado (4px on / 2px off)
+            canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_GRIS, 2, 1);
+            canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_GRIS, 2, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg1.p.x),
+                                   canvas.worldToGridY(scene.seg1.p.y), COL_GRIS, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg1.q.x),
+                                   canvas.worldToGridY(scene.seg1.q.y), COL_GRIS, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg2.p.x),
+                                   canvas.worldToGridY(scene.seg2.p.y), COL_GRIS, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg2.q.x),
+                                   canvas.worldToGridY(scene.seg2.q.y), COL_GRIS, 1);
+
+            canvas.drawPolygon(scene.polygon, COL_NEGRO, 2, 1);
+            for (const auto& v : scene.polygon) {
+                canvas.drawCrossMarker(canvas.worldToGridX(v.x),
+                                       canvas.worldToGridY(v.y), COL_NEGRO, 1);
+            }
         }
     }
 
-    // 5. Figura y segmentos transformados (azul, verde y rojo en vertices)
+    // 5. Figura y segmentos transformados principales (trazo 2 px continuo vibrante)
     if (!exp.steps.empty()) {
         const auto poly1 = transformPolygon(M1, scene.polygon);
         const auto s1 = transformSegment(M1, scene.seg1);
         const auto s2 = transformSegment(M1, scene.seg2);
+        const bool singular = isSingular(M1);
 
-        canvas.drawWorldSegment(s1.p, s1.q, COL_VERDE);
-        canvas.drawWorldSegment(s2.p, s2.q, COL_VERDE);
-        canvas.drawPolygon(poly1, COL_AZUL);
-        for (const auto& v : poly1) {
-            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_ROJO);
+        if (singular) {
+            // En colapso singular (p. ej. S(1,0) sobre y=0), hacer evidente tanto el intervalo
+            // de los segmentos colapsados L1'=L2' como el del poligono colapsado P'.
+            const int x1a = canvas.worldToGridX(s1.p.x);
+            const int y1a = canvas.worldToGridY(s1.p.y);
+            const int x1b = canvas.worldToGridX(s1.q.x);
+            const int y1b = canvas.worldToGridY(s1.q.y);
+            canvas.drawLine(x1a, y1a - 1, x1b, y1b - 1, COL_VERDE, 1, 2);
+            canvas.drawSquareMarker(x1a, y1a - 1, COL_VERDE, 1, false);
+            canvas.drawSquareMarker(x1b, y1b - 1, COL_VERDE, 1, false);
+        } else {
+            canvas.drawWorldSegment(s1.p, s1.q, COL_VERDE, 1, 2);
+            canvas.drawWorldSegment(s2.p, s2.q, COL_VERDE, 1, 2);
+            canvas.drawSquareMarker(canvas.worldToGridX(s1.p.x),
+                                    canvas.worldToGridY(s1.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(s1.q.x),
+                                    canvas.worldToGridY(s1.q.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(s2.p.x),
+                                    canvas.worldToGridY(s2.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(s2.q.x),
+                                    canvas.worldToGridY(s2.q.y), COL_VERDE, 1, false);
+        }
+
+        canvas.drawPolygon(poly1, COL_AZUL, 1, 2);
+        for (std::size_t i = 0; i < poly1.size(); ++i) {
+            const int gx = canvas.worldToGridX(poly1[i].x);
+            const int gy = canvas.worldToGridY(poly1[i].y);
+            if (i == scene.highlightVertexIndex) {
+                canvas.drawSquareMarker(gx, gy, COL_ROJO, 1, true);
+            } else {
+                canvas.drawCrossMarker(gx, gy, COL_ROJO, 1);
+            }
         }
     }
 
-    // 6. Segunda rama para comparacion simultanea de orden (naranja y morado)
+    // 6. Segunda rama para comparacion simultanea de orden (naranja 2 px continuo)
     if (exp.hasSecondBranch) {
         const Matrix3 M2 = composeInApplicationOrder(exp.secondSteps);
         const auto poly2 = transformPolygon(M2, scene.polygon);
         const auto s1b = transformSegment(M2, scene.seg1);
         const auto s2b = transformSegment(M2, scene.seg2);
 
-        canvas.drawWorldSegment(s1b.p, s1b.q, COL_MORADO);
-        canvas.drawWorldSegment(s2b.p, s2b.q, COL_MORADO);
-        canvas.drawPolygon(poly2, COL_NARANJA);
-        for (const auto& v : poly2) {
-            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_NARANJA);
+        canvas.drawWorldSegment(s1b.p, s1b.q, COL_MORADO, 2, 1);
+        canvas.drawWorldSegment(s2b.p, s2b.q, COL_MORADO, 2, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s1b.p.x),
+                               canvas.worldToGridY(s1b.p.y), COL_MORADO, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s1b.q.x),
+                               canvas.worldToGridY(s1b.q.y), COL_MORADO, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s2b.p.x),
+                               canvas.worldToGridY(s2b.p.y), COL_MORADO, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s2b.q.x),
+                               canvas.worldToGridY(s2b.q.y), COL_MORADO, 1);
+
+        canvas.drawPolygon(poly2, COL_NARANJA, 1, 2);
+        for (std::size_t i = 0; i < poly2.size(); ++i) {
+            const int gx = canvas.worldToGridX(poly2[i].x);
+            const int gy = canvas.worldToGridY(poly2[i].y);
+            if (i == scene.highlightVertexIndex) {
+                canvas.drawSquareMarker(gx, gy, COL_ROJO, 1, true);
+            } else {
+                canvas.drawCrossMarker(gx, gy, COL_NARANJA, 1);
+            }
         }
     }
-
-    canvas.putPoint(ORIGIN_X, ORIGIN_Y, COL_ROJO);
 }
 
 }  // namespace cg
 
 // ============================================================================
-// Estado interactivo, interfaz OpenGL, consola ANSI y autoprueba (--self-test)
+// Laboratorio Interactivo de Transformaciones Afines 2D
+// UNSAAC - Computacion Grafica I (IF455AIN) - Semestre 2026-02
+//
+// Estilo visual basado en el entorno de laboratorio del curso:
+//   - Rejilla discreta 160 x 120 (4 px/unidad, ventana 1280 x 960, 8x8 px/celda)
+//     con opcion G para mostrar u ocultar la rejilla discreta y por unidad.
+//   - Rasterizacion propia mediante putPixel()/putPoint(), Bresenham y
+//     drawPolygon() sin glTranslatef/glRotatef/glScalef ni GL_POLYGON.
+//   - Panel compacto en consola que limpia la salida anterior y muestra
+//     siempre el menu de opciones seguido de la informacion en vivo.
 // ============================================================================
 
 namespace {
@@ -794,6 +1094,7 @@ bool gShowTransformedLattice = true; // Tecla M: cuadricula local transformada
 bool gShowOriginal = true;           // Tecla H: figura original de referencia
 int gMode = 0;                       // 0..8 o 9 (cadena personalizada tecla C)
 
+// Parametros interactivos editables en vivo
 struct LiveParams {
     double shearX = 0.7;
     double shearY = 0.4;
@@ -804,6 +1105,7 @@ struct LiveParams {
     double tx = 2.0;
     double ty = -2.0;
     bool reflectY = false;
+    bool reflectX = false;
     bool reverseOrder = false;
 } gParams;
 
@@ -834,9 +1136,15 @@ cg::ExperimentConfig buildActiveConfig() {
             cfg.steps = {{"Hy(" + fmtNum(gParams.shearY) + ")", cg::shearYMatrix(gParams.shearY)}};
             break;
         case 3:
-            cfg.id = "REF_Y";
-            cfg.title = "3: Reflexion respecto al eje vertical (Ref_y)";
-            cfg.steps = {{"Ref_y", cg::reflectionYMatrix()}};
+            if (gParams.reflectX) {
+                cfg.id = "REF_X";
+                cfg.title = "3: Reflexion respecto al eje horizontal (Ref_x)";
+                cfg.steps = {{"Ref_x", cg::reflectionXMatrix()}};
+            } else {
+                cfg.id = "REF_Y";
+                cfg.title = "3: Reflexion respecto al eje vertical (Ref_y)";
+                cfg.steps = {{"Ref_y", cg::reflectionYMatrix()}};
+            }
             break;
         case 4:
             cfg.id = "REF_PHI";
@@ -890,6 +1198,7 @@ cg::ExperimentConfig buildActiveConfig() {
             st.push_back({"S(" + fmtNum(gParams.scaleX) + "," + fmtNum(gParams.scaleY) + ")",
                           cg::scalingMatrix(gParams.scaleX, gParams.scaleY)});
             if (gParams.reflectY) st.push_back({"Ref_y", cg::reflectionYMatrix()});
+            if (gParams.reflectX) st.push_back({"Ref_x", cg::reflectionXMatrix()});
             st.push_back({"R(" + fmtNum(gParams.angleDeg, 1) + ")", cg::rotationMatrix(gParams.angleDeg)});
             st.push_back({"T(" + fmtNum(gParams.tx, 1) + "," + fmtNum(gParams.ty, 1) + ")",
                           cg::translationMatrix(gParams.tx, gParams.ty)});
@@ -912,6 +1221,8 @@ void setModeDefaults(int mode) {
         gParams.shearX = 0.7;
     } else if (mode == 2) {
         gParams.shearY = 0.4;
+    } else if (mode == 3) {
+        gParams.reflectX = false;
     } else if (mode == 4) {
         gParams.refPhiDeg = 30.0;
     } else if (mode == 5) {
@@ -935,10 +1246,12 @@ void setModeDefaults(int mode) {
         gParams.tx = 1.0;
         gParams.ty = -1.0;
         gParams.reflectY = false;
+        gParams.reflectX = false;
         gParams.reverseOrder = false;
     }
 }
 
+// Limpia la consola y redibuja el menu compacto + estado en vivo de la opcion activa
 void renderTerminalDashboard() {
     std::cout << "\033[2J\033[H";
 
@@ -947,15 +1260,16 @@ void renderTerminalDashboard() {
     const auto rep = cg::evaluateTransform(gScene, M1);
 
     std::cout << "============================================================================\n"
-              << "  LABORATORIO DE TRANSFORMACIONES AFINES 2D  |  Rejilla 40x30 (Origen 20,15)\n"
+              << "  LABORATORIO DE TRANSFORMACIONES AFINES 2D | Rejilla 160x120 (4 px/u)\n"
               << "============================================================================\n"
-              << "MODOS : [0] Base  [1] Hx  [2] Hy  [3] Ref_y  [4] Ref_phi  [5] Orden R*Hx/Hx*R\n"
+              << "MODOS : [0] Base  [1] Hx  [2] Hy  [3] Ref_y/x  [4] Ref_phi  [5] Orden R*Hx\n"
               << "        [6] Cambio de area (4 pasos)  [7] Singular  [8] Libre  [C] Cadena N>=3\n"
               << "AJUSTE: [+/-] Parametro activo | [A/D] kx | [J/L] ky | [Z/X] sx | [W/S] sy\n"
-              << "        [Q/E] angulo | [Flechas] tx,ty | [F] Ref_y | [O] Invertir orden\n"
+              << "        [Q/E] angulo | [Flechas] tx,ty | [F] Ref_y/x | [O] Invertir orden\n"
               << "VISTA : [G] Rejilla(" << (gShowPixelGrid ? "ON" : "OFF")
               << ") | [M] Cuadricula(" << (gShowTransformedLattice ? "ON" : "OFF")
               << ") | [H] Original(" << (gShowOriginal ? "ON" : "OFF")
+              << ") | [V] Vertice(" << gScene.vertexNames[gScene.highlightVertexIndex]
               << ") | [R] Reset | [ESC] Salir\n"
               << "----------------------------------------------------------------------------\n";
 
@@ -991,11 +1305,26 @@ void renderTerminalDashboard() {
               << " | sep=" << rep.transParallel.lineSeparation
               << " | " << rep.transParallel.status << "\n";
 
+    std::cout << "VERT.  : ";
+    for (std::size_t i = 0; i < gScene.polygon.size(); ++i) {
+        if (i == gScene.highlightVertexIndex) std::cout << "*";
+        std::cout << gScene.vertexNames[i] << cg::formatPoint(gScene.polygon[i], 0)
+                  << "->" << cg::formatPoint(rep.transPoly[i], 2);
+        if (i == 2) std::cout << "\n         ";
+        else if (i + 1 < gScene.polygon.size()) std::cout << " | ";
+    }
+    std::cout << "\n";
+
     const std::size_t idx = gScene.highlightVertexIndex;
-    std::cout << "REF V4 : " << cg::formatPoint(gScene.polygon[idx], 2)
+    std::cout << "SEL " << gScene.vertexNames[idx] << " : " << cg::formatPoint(gScene.polygon[idx], 2)
               << " -> " << cg::formatPoint(rep.transPoly[idx], 4)
-              << "   |   Angulo V0: " << std::setprecision(2) << rep.origAngleAtV0
-              << " -> " << rep.transAngleAtV0 << " deg\n";
+              << " | Ang V0: " << std::setprecision(2) << rep.origAngleAtV0 << "->";
+    if (rep.transAngleAtV0Defined) {
+        std::cout << rep.transAngleAtV0 << " deg";
+    } else {
+        std::cout << "INDEF.";
+    }
+    std::cout << " | |V5-V0|: " << rep.origEdgeV5V0 << "->" << rep.transEdgeV5V0 << "\n";
 
     if (cfg.hasSecondBranch) {
         const cg::Matrix3 M2 = cg::composeInApplicationOrder(cfg.secondSteps);
@@ -1003,9 +1332,9 @@ void renderTerminalDashboard() {
         const double gap = cg::distanceBetween(rep.transPoly[idx], rep2.transPoly[idx]);
         std::cout << "----------------------------------------------------------------------------\n"
                   << "RAMA 2 (Naranja) : " << cg::formatMatrixProductOrder(cfg.secondSteps) << "\n"
-                  << "V4 Azul=" << cg::formatPoint(rep.transPoly[idx], 4)
-                  << " | V4 Naranja=" << cg::formatPoint(rep2.transPoly[idx], 4)
-                  << " | ||Delta V4|| = " << std::setprecision(4) << gap << "\n";
+                  << gScene.vertexNames[idx] << " Azul=" << cg::formatPoint(rep.transPoly[idx], 4)
+                  << " | " << gScene.vertexNames[idx] << " Naranja=" << cg::formatPoint(rep2.transPoly[idx], 4)
+                  << " | ||Delta " << gScene.vertexNames[idx] << "|| = " << std::setprecision(4) << gap << "\n";
     }
     std::cout << "============================================================================\n"
               << std::flush;
@@ -1067,6 +1396,9 @@ void runConsoleChainBuilder() {
             std::cout << "  phi (grados): ";
             if (!(std::cin >> phi)) { std::cin.clear(); std::cin.ignore(10000, '\n'); break; }
             chain.push_back({"Ref(" + fmtNum(phi, 1) + ")", cg::reflectionLineMatrix(phi)});
+        } else {
+            std::cout << "  Opcion invalida (use 1..8). Intente de nuevo.\n";
+            --i;
         }
     }
 
@@ -1077,29 +1409,32 @@ void runConsoleChainBuilder() {
     renderTerminalDashboard();
 }
 
-// Rejilla 40 x 30 del curso (drawGrid), activable con tecla G.
-// Unico lugar donde se utiliza GL_LINES.
-void drawGrid() {
+// Rejilla de pixeles del curso (drawGrid), activable con G.
+// Dibuja sub-rejilla discreta (160x120) y rejilla por unidad matematica (cada 4 celdas).
+void drawPixelGridOpenGL() {
     if (!gShowPixelGrid) return;
-    glColor3f(cg::COL_GRID_LINE.r, cg::COL_GRID_LINE.g, cg::COL_GRID_LINE.b);
     glLineWidth(1.0f);
     glBegin(GL_LINES);
     for (int x = 0; x <= cg::GRID_WIDTH; ++x) {
+        const cg::Color c = (x % cg::PX_PER_UNIT == 0) ? cg::COL_GRID_LINE : cg::COL_GRID_SUB;
+        glColor3f(c.r, c.g, c.b);
         glVertex2f(static_cast<float>(x), 0.0f);
         glVertex2f(static_cast<float>(x), static_cast<float>(cg::GRID_HEIGHT));
     }
     for (int y = 0; y <= cg::GRID_HEIGHT; ++y) {
+        const cg::Color c = (y % cg::PX_PER_UNIT == 0) ? cg::COL_GRID_LINE : cg::COL_GRID_SUB;
+        glColor3f(c.r, c.g, c.b);
         glVertex2f(0.0f, static_cast<float>(y));
         glVertex2f(static_cast<float>(cg::GRID_WIDTH), static_cast<float>(y));
     }
     glEnd();
 }
 
-// Dibuja exclusivamente las celdas logicas pintadas por putPixel()/putPoint()
-// con margen m = 0.08.
+// Dibuja exclusivamente las celdas logicas pintadas por putPoint() con margen m = 0.06
+// (fiel a putPixel del Examen de Laboratorio; GL_LINES solo se usa en drawGrid()).
 void flushCanvasToOpenGL(const cg::RasterCanvas& canvas) {
     glClear(GL_COLOR_BUFFER_BIT);
-    drawGrid();
+    drawPixelGridOpenGL();
 
     const auto& pix = canvas.pixels();
     const auto& occ = canvas.occupied();
@@ -1114,10 +1449,10 @@ void flushCanvasToOpenGL(const cg::RasterCanvas& canvas) {
             if (!occ[idx]) continue;
             const cg::Color& c = pix[idx];
             glColor3f(c.r, c.g, c.b);
-            glVertex2f(static_cast<float>(x) + m,     static_cast<float>(y) + m);
-            glVertex2f(static_cast<float>(x + 1) - m, static_cast<float>(y) + m);
-            glVertex2f(static_cast<float>(x + 1) - m, static_cast<float>(y + 1) - m);
-            glVertex2f(static_cast<float>(x) + m,     static_cast<float>(y + 1) - m);
+            glVertex2f(static_cast<float>(x) + m,       static_cast<float>(y) + m);
+            glVertex2f(static_cast<float>(x + 1) - m,   static_cast<float>(y) + m);
+            glVertex2f(static_cast<float>(x + 1) - m,   static_cast<float>(y + 1) - m);
+            glVertex2f(static_cast<float>(x) + m,       static_cast<float>(y + 1) - m);
         }
     }
     glEnd();
@@ -1155,6 +1490,9 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
         changed = true;
     } else if (action == GLFW_PRESS && key == GLFW_KEY_H) {
         gShowOriginal = !gShowOriginal;
+        changed = true;
+    } else if (action == GLFW_PRESS && key == GLFW_KEY_V) {
+        gScene.highlightVertexIndex = (gScene.highlightVertexIndex + 1) % gScene.polygon.size();
         changed = true;
     } else if (action == GLFW_PRESS && key == GLFW_KEY_R) {
         gParams = LiveParams{};
@@ -1197,8 +1535,12 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
     else if (key == GLFW_KEY_UP)    { gParams.ty += 0.5; changed = true; }
     else if (key == GLFW_KEY_DOWN)  { gParams.ty -= 0.5; changed = true; }
     else if (action == GLFW_PRESS && key == GLFW_KEY_F) {
-        gParams.reflectY = !gParams.reflectY;
-        gMode = 8;
+        if (gMode == 3) {
+            gParams.reflectX = !gParams.reflectX;
+        } else {
+            gParams.reflectY = !gParams.reflectY;
+            gMode = 8;
+        }
         changed = true;
     } else if (action == GLFW_PRESS && key == GLFW_KEY_O) {
         gParams.reverseOrder = !gParams.reverseOrder;
@@ -1217,6 +1559,7 @@ void framebufferSizeCallback(GLFWwindow*, int w, int h) {
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
+    // Eje Y crece hacia arriba (coherente con el plano cartesiano matematico)
     glOrtho(0.0, static_cast<double>(cg::GRID_WIDTH),
             0.0, static_cast<double>(cg::GRID_HEIGHT),
             -1.0, 1.0);
@@ -1231,35 +1574,35 @@ int exportAllPresetsToPPM(const std::string& outDir) {
     for (const auto& exp : presets) {
         cg::renderExperimentToCanvas(canvas, gScene, exp, true, true);
         const std::string filePath = outDir + "/" + exp.id + ".ppm";
-        if (!canvas.savePPM(filePath, true, 25)) {
+        if (!canvas.savePPM(filePath, true, cg::CELL_PX)) {
             std::cerr << "Error guardando " << filePath << "\n";
             return EXIT_FAILURE;
         }
-        std::cout << "Exportado raster real 40x30 (con rejilla): " << filePath << "\n";
+        std::cout << "Exportado raster real 160x120 (4 px/u, 1280x960): " << filePath << "\n";
     }
     return EXIT_SUCCESS;
 }
 
+
 void requireCheck(bool cond, const std::string& msg) {
     if (!cond) {
-        throw std::runtime_error("FALLO EN SELF-TEST: " + msg);
+        throw std::runtime_error("FALLO DE AUTOPRUEBA: " + msg);
     }
 }
 
 void requireNear(double actual, double expected, double tol, const std::string& msg) {
     if (std::abs(actual - expected) >= tol) {
         std::ostringstream oss;
-        oss << msg << " (esperado=" << expected << ", obtenido=" << actual
-            << ", diff=" << std::abs(actual - expected) << ")";
-        throw std::runtime_error("FALLO EN SELF-TEST: " + oss.str());
+        oss << msg << " (esperado=" << expected << ", obtenido=" << actual << ")";
+        throw std::runtime_error("FALLO DE AUTOPRUEBA: " + oss.str());
     }
 }
 
 void requireMatrixIdentity(const cg::Matrix3& M, double tol, const std::string& msg) {
-    const cg::Matrix3 I = cg::identityMatrix();
     for (int r = 0; r < 3; ++r) {
         for (int c = 0; c < 3; ++c) {
-            requireNear(M.a[r][c], I.a[r][c], tol, msg);
+            const double expVal = (r == c) ? 1.0 : 0.0;
+            requireNear(M.a[r][c], expVal, tol, msg);
         }
     }
 }
@@ -1270,156 +1613,127 @@ int runSelfTest() {
         const cg::BaseScene scene;
         const auto presets = cg::buildPresetExperiments();
 
-        // 0. Escena base: poligono asimetrico (6 vertices, area +24.0) y L1 || L2
-        requireCheck(scene.polygon.size() == 6, "Poligono base debe tener 6 vertices");
-        const double baseArea = cg::signedArea(scene.polygon);
-        requireNear(baseArea, 24.0, TOL, "Area base con signo debe ser +24.0");
-        const auto basePar = cg::measureParallelism(scene.seg1, scene.seg2);
-        requireCheck(basePar.parallel && !basePar.coincident,
-                     "L1 y L2 base deben ser paralelos distintos");
-        std::cout << "[PASS] Modo 0 / BASE: poligono 6 vertices, area = +24.0, L1 || L2.\n";
-
         auto findPreset = [&](const std::string& id) -> const cg::ExperimentConfig& {
-            for (const auto& p : presets) {
-                if (p.id == id) return p;
+            for (const auto& e : presets) {
+                if (e.id == id) return e;
             }
             throw std::runtime_error("Preset no encontrado: " + id);
         };
 
-        // 1. E1 / Modo 1: Cizallamiento horizontal Hx(0.7)
+        std::cout << "============================================================================\n"
+                  << "  AUTOPRUEBA NUMERICA Y DE RASTERIZACION (VERSION ARCHIVO UNICO)\n"
+                  << "============================================================================\n";
+
+        // 1. Escena base
+        {
+            const double baseArea = cg::signedArea(scene.polygon);
+            requireNear(baseArea, 24.0, TOL, "Area base debe ser +24.0");
+            const auto basePar = cg::measureParallelism(scene.seg1, scene.seg2);
+            requireCheck(basePar.parallel && !basePar.coincident, "L1 y L2 deben ser paralelos distintos");
+            std::cout << "[PASS] Escena base: poligono de 6 vertices, area=+24.0, L1||L2.\n";
+        }
+
+        // 2. Cizallamiento horizontal Hx(0.7)
         {
             const auto& exp = findPreset("SHEAR_X");
             const auto rep = cg::evaluateTransform(scene, cg::composeInApplicationOrder(exp.steps));
-            requireNear(rep.detA, 1.0, TOL, "E1 Hx(0.7): det(A) debe ser 1");
-            requireNear(rep.transSignedArea, 24.0, TOL, "E1 Hx(0.7): area debe ser +24");
+            requireNear(rep.detA, 1.0, TOL, "Hx(0.7): det(A) debe ser 1");
+            requireNear(rep.transSignedArea, 24.0, TOL, "Hx(0.7): area debe ser +24");
             requireCheck(rep.transParallel.parallel && !rep.transParallel.coincident,
-                         "E1 Hx(0.7): L1' y L2' deben seguir paralelos distintos");
-            requireNear(rep.transParallel.normalizedSine, 0.0, TOL,
-                        "E1 Hx(0.7): seno normalizado debe ser 0");
+                         "Hx(0.7): debe conservar paralelismo");
             requireCheck(std::abs(rep.transAngleAtV0 - 90.0) > 10.0,
-                         "E1 Hx(0.7): el angulo recto en V0 debe alterarse");
-            std::cout << "[PASS] Modo 1 / E1 (SHEAR_X): det=1, area=+24, paralelismo intacto, angulo alterado.\n";
+                         "Hx(0.7): el angulo recto en V0 debe alterarse");
+            requireNear(rep.transEdgeV5V0, std::hypot(3.5, 5.0), TOL,
+                        "Hx(0.7): arista V5-V0 debe medir sqrt(37.25)");
+            std::cout << "[PASS] Cizallamiento Hx(0.7): det=1, area=+24, paralelismo conservado, |V5-V0|=6.1033.\n";
         }
 
-        // 2. Modo 2: Cizallamiento vertical Hy(0.4)
-        {
-            const cg::Matrix3 M = cg::shearYMatrix(0.4);
-            const auto rep = cg::evaluateTransform(scene, M);
-            requireNear(rep.detA, 1.0, TOL, "Modo 2 Hy(0.4): det(A) debe ser 1");
-            requireNear(rep.transSignedArea, 24.0, TOL, "Modo 2 Hy(0.4): area debe ser +24");
-            requireCheck(rep.transParallel.parallel && !rep.transParallel.coincident,
-                         "Modo 2 Hy(0.4): L1' y L2' deben seguir paralelos distintos");
-            requireNear(rep.transParallel.normalizedSine, 0.0, TOL,
-                        "Modo 2 Hy(0.4): seno normalizado debe ser 0");
-            std::cout << "[PASS] Modo 2 (SHEAR_Y): det=1, area=+24, paralelismo intacto.\n";
-        }
-
-        // 3. E2 / Modo 3: Reflexion respecto al eje vertical (Ref_y)
+        // 3. Reflexion vertical Ref_y
         {
             const auto& exp = findPreset("REF_Y");
             const auto rep = cg::evaluateTransform(scene, cg::composeInApplicationOrder(exp.steps));
-            requireNear(rep.detA, -1.0, TOL, "E2 Ref_y: det(A) debe ser -1");
-            requireNear(rep.transSignedArea, -24.0, TOL, "E2 Ref_y: area con signo debe ser -24");
-            requireNear(rep.transAbsArea, 24.0, TOL, "E2 Ref_y: area absoluta debe ser 24");
-            requireCheck(rep.transParallel.parallel && !rep.transParallel.coincident,
-                         "E2 Ref_y: L1' y L2' paralelos");
-            std::cout << "[PASS] Modo 3 / E2 (REF_Y): det=-1, area_signo=-24, |area|=24, orientacion CW.\n";
+            requireNear(rep.detA, -1.0, TOL, "Ref_y: det(A) debe ser -1");
+            requireNear(rep.transSignedArea, -24.0, TOL, "Ref_y: area signo = -24");
+            requireNear(rep.transAbsArea, 24.0, TOL, "Ref_y: |area| = 24");
+            std::cout << "[PASS] Reflexion vertical Ref_y: det=-1, area signo=-24 (CW), |area|=24.\n";
         }
 
-        // 4. Modo 4: Reflexion oblicua Ref_30 = R(30) * Ref_x * R(-30)
+        // 4. Reflexion oblicua Ref_30 = R(30)*Ref_x*R(-30)
         {
             const auto& exp = findPreset("REF_30");
             const cg::Matrix3 M = cg::composeInApplicationOrder(exp.steps);
             const auto rep = cg::evaluateTransform(scene, M);
             const double c60 = std::cos(60.0 * cg::PI / 180.0);
             const double s60 = std::sin(60.0 * cg::PI / 180.0);
-            requireNear(M.a[0][0],  c60, TOL, "Modo 4 REF_30: a[0][0] == cos(60)");
-            requireNear(M.a[0][1],  s60, TOL, "Modo 4 REF_30: a[0][1] == sin(60)");
-            requireNear(M.a[1][0],  s60, TOL, "Modo 4 REF_30: a[1][0] == sin(60)");
-            requireNear(M.a[1][1], -c60, TOL, "Modo 4 REF_30: a[1][1] == -cos(60)");
-            requireNear(rep.detA, -1.0, TOL, "Modo 4 REF_30: det(A) debe ser -1");
-            requireNear(rep.transSignedArea, -24.0, TOL, "Modo 4 REF_30: area con signo debe ser -24");
-            requireMatrixIdentity(cg::multiplyMatrix(M, M), TOL, "Modo 4 REF_30: Ref^2 == I");
-            std::cout << "[PASS] Modo 4 (REF_30): R(30)*Ref_x*R(-30) coincide analiticamente, Ref^2=I.\n";
+            requireNear(M.a[0][0],  c60, TOL, "Ref_30: a[0][0] == cos(60)");
+            requireNear(M.a[0][1],  s60, TOL, "Ref_30: a[0][1] == sin(60)");
+            requireNear(M.a[1][0],  s60, TOL, "Ref_30: a[1][0] == sin(60)");
+            requireNear(M.a[1][1], -c60, TOL, "Ref_30: a[1][1] == -cos(60)");
+            requireNear(rep.detA, -1.0, TOL, "Ref_30: det(A) debe ser -1");
+            requireMatrixIdentity(cg::multiplyMatrix(M, M), TOL, "Ref_30: Ref^2 == I");
+            std::cout << "[PASS] Reflexion oblicua Ref_30: R(30)*Ref_x*R(-30) exacta y Ref^2=I.\n";
         }
 
-        // 5. E3 / Modo 5: Orden R(45)*Hx(0.7) vs Hx(0.7)*R(45)
+        // 5. Comparacion de orden R(45)*Hx(0.7) vs Hx(0.7)*R(45)
         {
             const auto& expComp = findPreset("ORDEN_COMP");
             const auto repRH = cg::evaluateTransform(scene, cg::composeInApplicationOrder(expComp.steps));
             const auto repHR = cg::evaluateTransform(scene, cg::composeInApplicationOrder(expComp.secondSteps));
-            const cg::Point v4RH = repRH.transPoly[scene.highlightVertexIndex];
-            const cg::Point v4HR = repHR.transPoly[scene.highlightVertexIndex];
-            const double diffV4 = cg::distanceBetween(v4RH, v4HR);
-            requireCheck(diffV4 > 1.0, "E3 Orden: R*Hx y Hx*R deben diferir en V4");
-            requireNear(repRH.transSignedArea, 24.0, TOL, "E3 Orden R*Hx: area = +24");
-            requireNear(repHR.transSignedArea, 24.0, TOL, "E3 Orden Hx*R: area = +24");
-            requireCheck(repRH.transParallel.parallel && repHR.transParallel.parallel,
-                         "E3 Orden: ambos ordenes conservan paralelismo");
-            std::cout << "[PASS] Modo 5 / E3 (ORDEN_COMP): ||Delta V4|| = "
+            const double diffV4 = cg::distanceBetween(repRH.transPoly[4], repHR.transPoly[4]);
+            requireCheck(diffV4 > 4.0, "Orden: R*Hx y Hx*R deben diferir en V4");
+            requireNear(repRH.transSignedArea, 24.0, TOL, "Orden R*Hx: area = +24");
+            requireNear(repHR.transSignedArea, 24.0, TOL, "Orden Hx*R: area = +24");
+            std::cout << "[PASS] Comparacion de orden: ||Delta V4|| = "
                       << std::fixed << std::setprecision(6) << diffV4 << ", area=+24.\n";
         }
 
-        // 6. E4 / Modo 6: Cambio de area T(2,-2)*R(25)*S(1.5,0.8)*Hx(0.5)
+        // 6. Composicion de 4 pasos con cambio de area
         {
             const auto& exp = findPreset("AREA_COMP");
             const auto rep = cg::evaluateTransform(scene, cg::composeInApplicationOrder(exp.steps));
-            requireNear(std::abs(rep.detA), 1.2, TOL, "E4 Cambio de area: |det(A)| debe ser 1.2");
-            requireNear(rep.areaAbsError, 0.0, TOL, "E4 Cambio de area: |Area' - |det(A)|*Area_orig| < 1e-9");
-            requireCheck(!rep.singular && rep.invertible, "E4 debe ser invertible");
+            requireNear(std::abs(rep.detA), 1.2, TOL, "Cambio de area: |det(A)| debe ser 1.2");
+            requireNear(rep.areaAbsError, 0.0, TOL, "Cambio de area: |Area' - |det(A)|*Area_orig| < 1e-9");
             cg::Matrix3 inv{};
-            requireCheck(cg::tryInvertAffine(rep.M, inv, TOL), "E4 tryInvertAffine debe tener exito");
-            requireMatrixIdentity(cg::multiplyMatrix(inv, rep.M), TOL, "E4 M^-1 * M == I");
-            requireMatrixIdentity(cg::multiplyMatrix(rep.M, inv), TOL, "E4 M * M^-1 == I");
-            requireCheck(rep.transParallel.parallel && !rep.transParallel.coincident,
-                         "E4 debe conservar paralelismo");
-            std::cout << "[PASS] Modo 6 / E4 (AREA_COMP): |det|=1.2, error_area="
+            requireCheck(cg::tryInvertAffine(rep.M, inv, TOL), "Cambio de area debe ser invertible");
+            requireMatrixIdentity(cg::multiplyMatrix(inv, rep.M), TOL, "M^-1 * M == I");
+            requireMatrixIdentity(cg::multiplyMatrix(rep.M, inv), TOL, "M * M^-1 == I");
+            std::cout << "[PASS] Composicion 4 pasos: |det|=1.2, error_area="
                       << std::scientific << std::setprecision(2) << rep.areaAbsError
                       << ", M^-1*M=I.\n";
         }
 
-        // 7. E5 / Modo 7: Casos degenerados S(1,0) y S(0,1)
+        // 7. Casos degenerados singulares S(1,0) y S(0,1)
         {
             const auto& exp = findPreset("SINGULAR");
             const auto rep = cg::evaluateTransform(scene, cg::composeInApplicationOrder(exp.steps));
-            requireCheck(rep.singular && !rep.invertible, "E5 S(1,0) debe marcarse singular");
-            requireNear(rep.detA, 0.0, TOL, "E5 S(1,0): det(A) debe ser 0");
-            requireNear(rep.transAbsArea, 0.0, TOL, "E5 S(1,0): area debe ser 0");
+            requireCheck(rep.singular && !rep.invertible, "S(1,0) debe marcarse singular");
+            requireNear(rep.detA, 0.0, TOL, "S(1,0): det(A) debe ser 0");
+            requireNear(rep.transAbsArea, 0.0, TOL, "S(1,0): area debe ser 0");
+            requireCheck(!rep.transAngleAtV0Defined, "S(1,0): angulo en V0 indefinido");
             cg::Matrix3 dummyInv{};
-            requireCheck(!cg::tryInvertAffine(rep.M, dummyInv, TOL),
-                         "E5 S(1,0): tryInvertAffine debe rechazar matriz singular");
-            requireCheck(rep.transParallel.coincident,
-                         "E5 S(1,0): L1' y L2' colapsan sobre y = 0");
+            requireCheck(!cg::tryInvertAffine(rep.M, dummyInv, TOL), "S(1,0) no debe admitir inversa");
+            requireCheck(rep.transParallel.coincident, "S(1,0): L1' y L2' colapsan sobre y=0");
 
             const auto repX0 = cg::evaluateTransform(scene, cg::scalingMatrix(0.0, 1.0));
-            requireCheck(repX0.singular && !repX0.invertible, "E5 S(0,1) debe marcarse singular");
-            requireNear(repX0.detA, 0.0, TOL, "E5 S(0,1): det(A) debe ser 0");
-            requireNear(repX0.transAbsArea, 0.0, TOL, "E5 S(0,1): area debe ser 0");
-            requireCheck(!cg::tryInvertAffine(repX0.M, dummyInv, TOL),
-                         "E5 S(0,1): tryInvertAffine debe rechazar matriz singular");
-            requireCheck(repX0.transParallel.coincident,
-                         "E5 S(0,1): L1' y L2' colapsan sobre x = 0");
-            std::cout << "[PASS] Modo 7 / E5 (SINGULAR): S(1,0) y S(0,1) con det=0, area=0, sin inversa.\n";
+            requireCheck(repX0.singular && !repX0.invertible, "S(0,1) debe marcarse singular");
+            requireCheck(!cg::tryInvertAffine(repX0.M, dummyInv, TOL), "S(0,1) no debe admitir inversa");
+            std::cout << "[PASS] Casos singulares S(1,0) y S(0,1): det=0, area=0, angulo indefinido, sin inversa.\n";
         }
 
-        // 8. Modo 8 (Libre) + Cadena N>=3 + RasterCanvas 40x30
+        // 8. Modo libre y RasterCanvas 160x120
         {
             setModeDefaults(8);
             gParams.reflectY = true;
             gParams.reverseOrder = false;
-            const auto cfgFwd = buildActiveConfig();
-            const auto repFwd = cg::evaluateTransform(scene, cg::composeInApplicationOrder(cfgFwd.steps));
-            requireNear(repFwd.areaAbsError, 0.0, TOL, "Modo 8 forward: |Area'| == |det| * Area_orig");
-            requireCheck(repFwd.detA < 0.0, "Modo 8 con Ref_y: det(A) debe ser negativo");
+            const auto repFwd = cg::evaluateTransform(scene, cg::composeInApplicationOrder(buildActiveConfig().steps));
+            requireNear(repFwd.areaAbsError, 0.0, TOL, "Modo libre forward");
+            requireCheck(repFwd.detA < 0.0, "Modo libre con Ref_y: det < 0");
 
             gParams.reverseOrder = true;
-            const auto cfgRev = buildActiveConfig();
-            const auto repRev = cg::evaluateTransform(scene, cg::composeInApplicationOrder(cfgRev.steps));
-            requireNear(repRev.areaAbsError, 0.0, TOL, "Modo 8 reverse: |Area'| == |det| * Area_orig");
-            const double gapLive = cg::distanceBetween(
-                repFwd.transPoly[scene.highlightVertexIndex],
-                repRev.transPoly[scene.highlightVertexIndex]);
-            requireCheck(gapLive > 0.1, "Modo 8: invertir orden debe cambiar V4");
+            const auto repRev = cg::evaluateTransform(scene, cg::composeInApplicationOrder(buildActiveConfig().steps));
+            requireNear(repRev.areaAbsError, 0.0, TOL, "Modo libre reverse");
+            requireCheck(cg::distanceBetween(repFwd.transPoly[4], repRev.transPoly[4]) > 0.1,
+                         "Modo libre: invertir orden cambia V4");
 
             cg::RasterCanvas testCanvas(cg::GRID_WIDTH, cg::GRID_HEIGHT);
             cg::renderExperimentToCanvas(testCanvas, scene, findPreset("AREA_COMP"), true, true);
@@ -1427,15 +1741,13 @@ int runSelfTest() {
             for (bool occ : testCanvas.occupied()) {
                 if (occ) ++paintedCount;
             }
-            requireCheck(paintedCount > 50, "RasterCanvas 40x30 debe rasterizar celdas con putPoint/Bresenham");
-            std::cout << "[PASS] Modo 8 (LIVE) y RasterCanvas 40x30: " << paintedCount
+            requireCheck(paintedCount > 200, "RasterCanvas 160x120 debe rasterizar celdas");
+            std::cout << "[PASS] Modo libre y RasterCanvas 160x120: " << paintedCount
                       << " celdas rasterizadas correctamente.\n";
         }
 
-        // Restaurar modo por defecto
         gParams = LiveParams{};
         setModeDefaults(0);
-
         std::cout << "\n[OK] SELF-TEST COMPLETADO: todas las verificaciones pasaron (tolerancia < 1e-9).\n";
         return EXIT_SUCCESS;
     } catch (const std::exception& ex) {

@@ -18,7 +18,8 @@ Contraste   : |det(A)| * Area_orig = 24.000000 | Error absoluto = 0.00e+00
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 90.000000 deg
-Longitud arista V0-V1          : 6.000000 -> 6.000000
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 6.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 5.000000
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (1.0000, 1.0000)
@@ -54,7 +55,8 @@ Contraste   : |det(A)| * Area_orig = 24.000000 | Error absoluto = 0.00e+00
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 55.007980 deg
-Longitud arista V0-V1          : 6.000000 -> 6.000000
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 6.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 6.103278
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (1.7000, 1.0000)
@@ -90,7 +92,8 @@ Contraste   : |det(A)| * Area_orig = 24.000000 | Error absoluto = 0.00e+00
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 90.000000 deg
-Longitud arista V0-V1          : 6.000000 -> 6.000000
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 6.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 5.000000
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (-1.0000, 1.0000)
@@ -126,7 +129,8 @@ Contraste   : |det(A)| * Area_orig = 24.000000 | Error absoluto = 0.00e+00
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 55.007980 deg
-Longitud arista V0-V1          : 6.000000 -> 6.000000
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 6.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 6.103278
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (0.4950, 1.9092)
@@ -162,7 +166,8 @@ Contraste   : |det(A)| * Area_orig = 24.000000 | Error absoluto = 3.55e-15
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 76.233699 deg
-Longitud arista V0-V1          : 6.000000 -> 8.367795
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 8.367795
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 3.691206
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (0.9899, 1.4142)
@@ -198,7 +203,8 @@ Contraste   : |det(A)| * Area_orig = 28.800000 | Error absoluto = 7.11e-15
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 46.847610 deg
-Longitud arista V0-V1          : 6.000000 -> 9.000000
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 9.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 5.482928
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (3.7011, -0.3241)
@@ -234,8 +240,9 @@ Transformada: Area_signo = 0.000000 | Area_abs = 0.000000 | DEGENERADA (area nul
 Contraste   : |det(A)| * Area_orig = 0.000000 | Error absoluto = 0.00e+00
 
 --- Angulos y longitudes ---
-Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 0.000000 deg
-Longitud arista V0-V1          : 6.000000 -> 6.000000
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> INDEFINIDO (arista colapsada)
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 6.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 0.000000
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (1.0000, 0.0000)
@@ -271,7 +278,8 @@ Contraste   : |det(A)| * Area_orig = 24.000000 | Error absoluto = 1.07e-14
 
 --- Angulos y longitudes ---
 Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 90.000000 deg
-Longitud arista V0-V1          : 6.000000 -> 6.000000
+Longitud arista V0-V1 (horiz.) : 6.000000 -> 6.000000
+Longitud arista V5-V0 (vert.)  : 5.000000 -> 5.000000
 
 --- Vertices del poligono ---
   V0:     (1.000, 1.000)  ->  (1.3660, 0.3660)

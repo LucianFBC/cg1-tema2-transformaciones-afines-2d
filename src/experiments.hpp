@@ -11,7 +11,8 @@
 
 // ============================================================================
 // Escena base y casos experimentales para transformaciones afines 2D.
-// Coordenadas cartesianas centradas en (0,0) -> celda (20,15) en rejilla 40x30.
+// Coordenadas cartesianas centradas en (0,0) -> celda (80,60) en rejilla 160x120
+// (escala: PX_PER_UNIT = 4 celdas discretas por cada unidad matematica).
 // ============================================================================
 
 namespace cg {
@@ -73,8 +74,11 @@ struct TransformReport {
     ParallelismMetrics transParallel;
     double origAngleAtV0{0.0};
     double transAngleAtV0{0.0};
+    bool transAngleAtV0Defined{true};
     double origEdgeV0V1{0.0};
     double transEdgeV0V1{0.0};
+    double origEdgeV5V0{0.0};
+    double transEdgeV5V0{0.0};
 };
 
 inline TransformReport evaluateTransform(const BaseScene& scene, const Matrix3& M) {
@@ -103,9 +107,11 @@ inline TransformReport evaluateTransform(const BaseScene& scene, const Matrix3& 
     r.transParallel = measureParallelism(r.transSeg1, r.transSeg2);
 
     r.origAngleAtV0 = interiorAngleDegrees(scene.polygon[5], scene.polygon[0], scene.polygon[1]);
-    r.transAngleAtV0 = interiorAngleDegrees(r.transPoly[5], r.transPoly[0], r.transPoly[1]);
+    r.transAngleAtV0Defined = tryInteriorAngleDegrees(r.transPoly[5], r.transPoly[0], r.transPoly[1], r.transAngleAtV0);
     r.origEdgeV0V1 = distanceBetween(scene.polygon[0], scene.polygon[1]);
     r.transEdgeV0V1 = distanceBetween(r.transPoly[0], r.transPoly[1]);
+    r.origEdgeV5V0 = distanceBetween(scene.polygon[5], scene.polygon[0]);
+    r.transEdgeV5V0 = distanceBetween(r.transPoly[5], r.transPoly[0]);
     return r;
 }
 
@@ -216,10 +222,16 @@ inline void printReportToStream(std::ostream& os, const BaseScene& scene,
        << std::fixed << std::setprecision(6) << "\n";
 
     os << "\n--- Angulos y longitudes ---\n";
-    os << "Angulo interno en V0 (V5-V0-V1): " << rep.origAngleAtV0
-       << " deg -> " << rep.transAngleAtV0 << " deg\n";
-    os << "Longitud arista V0-V1          : " << rep.origEdgeV0V1
+    os << "Angulo interno en V0 (V5-V0-V1): " << rep.origAngleAtV0 << " deg -> ";
+    if (rep.transAngleAtV0Defined) {
+        os << rep.transAngleAtV0 << " deg\n";
+    } else {
+        os << "INDEFINIDO (arista colapsada)\n";
+    }
+    os << "Longitud arista V0-V1 (horiz.) : " << rep.origEdgeV0V1
        << " -> " << rep.transEdgeV0V1 << "\n";
+    os << "Longitud arista V5-V0 (vert.)  : " << rep.origEdgeV5V0
+       << " -> " << rep.transEdgeV5V0 << "\n";
 
     os << "\n--- Vertices del poligono ---\n";
     for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
@@ -262,73 +274,149 @@ inline void renderExperimentToCanvas(RasterCanvas& canvas, const BaseScene& scen
     const Matrix3 I = identityMatrix();
     const Matrix3 M1 = composeInApplicationOrder(exp.steps);
 
-    // 1. Cuadricula local transformable (primero, para quedar detras de ejes y poligono)
+    // 1. Cuadricula local transformable (primero en el fondo, 1 px continuo Bresenham)
     if (showTransformedLattice) {
-        if (showOriginal) {
+        if (exp.steps.empty()) {
             canvas.drawTransformedLattice(I, scene.latticeXMin, scene.latticeXMax,
                                           scene.latticeYMin, scene.latticeYMax,
-                                          scene.latticeStep, COL_TGRID_ORIG, 2);
-        }
-        if (!exp.steps.empty()) {
+                                          scene.latticeStep, COL_TGRID_TRANS, 1);
+        } else {
+            const Color latCol = exp.hasSecondBranch ? COL_TGRID_FAINT : COL_TGRID_TRANS;
             canvas.drawTransformedLattice(M1, scene.latticeXMin, scene.latticeXMax,
                                           scene.latticeYMin, scene.latticeYMax,
-                                          scene.latticeStep, COL_TGRID_TRANS, 2);
+                                          scene.latticeStep, latCol, 1);
         }
     }
 
-    // 2. Ejes cartesianos centrados en (20, 15) mediante Bresenham
+    // 2. Ejes cartesianos delgados (1 px) con marcas cada 5 unidades
     canvas.drawAxes();
 
-    // 3. Recta oblicua de reflexion mediante Bresenham punteado (si aplica)
+    // 3. Recta oblicua de reflexion mediante Bresenham discontinuo limpio (6px on / 4px off)
     if (exp.drawReflectionAxis) {
         const double rad = exp.reflectionAxisDeg * (PI / 180.0);
         const double L = 22.0;
         canvas.drawWorldSegment({-L * std::cos(rad), -L * std::sin(rad)},
                                 { L * std::cos(rad),  L * std::sin(rad)},
-                                COL_MORADO, 2);
+                                COL_MORADO, 3, 1);
     }
 
-    // 4. Figura y segmentos originales (estilo negro/gris como en Examen_02)
+    // 4. Figura y segmentos originales de referencia
     if (showOriginal) {
-        canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_GRIS);
-        canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_GRIS);
-        canvas.drawPolygon(scene.polygon, COL_NEGRO);
-        for (const auto& v : scene.polygon) {
-            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_NEGRO);
+        if (exp.steps.empty()) {
+            // En escena base (modo 0), mostrar la geometria inicial con trazo de 2 px
+            canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_VERDE, 1, 2);
+            canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_VERDE, 1, 2);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg1.p.x),
+                                    canvas.worldToGridY(scene.seg1.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg1.q.x),
+                                    canvas.worldToGridY(scene.seg1.q.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg2.p.x),
+                                    canvas.worldToGridY(scene.seg2.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(scene.seg2.q.x),
+                                    canvas.worldToGridY(scene.seg2.q.y), COL_VERDE, 1, false);
+
+            canvas.drawPolygon(scene.polygon, COL_NEGRO, 1, 2);
+            for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
+                const int gx = canvas.worldToGridX(scene.polygon[i].x);
+                const int gy = canvas.worldToGridY(scene.polygon[i].y);
+                if (i == scene.highlightVertexIndex) {
+                    canvas.drawSquareMarker(gx, gy, COL_ROJO, 1, true);
+                } else {
+                    canvas.drawCrossMarker(gx, gy, COL_ROJO, 1);
+                }
+            }
+        } else {
+            // Como referencia frente a la transformada: trazo 1 px guionado (4px on / 2px off)
+            canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_GRIS, 2, 1);
+            canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_GRIS, 2, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg1.p.x),
+                                   canvas.worldToGridY(scene.seg1.p.y), COL_GRIS, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg1.q.x),
+                                   canvas.worldToGridY(scene.seg1.q.y), COL_GRIS, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg2.p.x),
+                                   canvas.worldToGridY(scene.seg2.p.y), COL_GRIS, 1);
+            canvas.drawCrossMarker(canvas.worldToGridX(scene.seg2.q.x),
+                                   canvas.worldToGridY(scene.seg2.q.y), COL_GRIS, 1);
+
+            canvas.drawPolygon(scene.polygon, COL_NEGRO, 2, 1);
+            for (const auto& v : scene.polygon) {
+                canvas.drawCrossMarker(canvas.worldToGridX(v.x),
+                                       canvas.worldToGridY(v.y), COL_NEGRO, 1);
+            }
         }
     }
 
-    // 5. Figura y segmentos transformados (azul y verde como en Examen_02)
+    // 5. Figura y segmentos transformados principales (trazo 2 px continuo vibrante)
     if (!exp.steps.empty()) {
         const auto poly1 = transformPolygon(M1, scene.polygon);
         const auto s1 = transformSegment(M1, scene.seg1);
         const auto s2 = transformSegment(M1, scene.seg2);
+        const bool singular = isSingular(M1);
 
-        canvas.drawWorldSegment(s1.p, s1.q, COL_VERDE);
-        canvas.drawWorldSegment(s2.p, s2.q, COL_VERDE);
-        canvas.drawPolygon(poly1, COL_AZUL);
-        for (const auto& v : poly1) {
-            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_ROJO);
+        if (singular) {
+            // En colapso singular (p. ej. S(1,0) sobre y=0), hacer evidente tanto el intervalo
+            // de los segmentos colapsados L1'=L2' como el del poligono colapsado P'.
+            const int x1a = canvas.worldToGridX(s1.p.x);
+            const int y1a = canvas.worldToGridY(s1.p.y);
+            const int x1b = canvas.worldToGridX(s1.q.x);
+            const int y1b = canvas.worldToGridY(s1.q.y);
+            canvas.drawLine(x1a, y1a - 1, x1b, y1b - 1, COL_VERDE, 1, 2);
+            canvas.drawSquareMarker(x1a, y1a - 1, COL_VERDE, 1, false);
+            canvas.drawSquareMarker(x1b, y1b - 1, COL_VERDE, 1, false);
+        } else {
+            canvas.drawWorldSegment(s1.p, s1.q, COL_VERDE, 1, 2);
+            canvas.drawWorldSegment(s2.p, s2.q, COL_VERDE, 1, 2);
+            canvas.drawSquareMarker(canvas.worldToGridX(s1.p.x),
+                                    canvas.worldToGridY(s1.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(s1.q.x),
+                                    canvas.worldToGridY(s1.q.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(s2.p.x),
+                                    canvas.worldToGridY(s2.p.y), COL_VERDE, 1, false);
+            canvas.drawSquareMarker(canvas.worldToGridX(s2.q.x),
+                                    canvas.worldToGridY(s2.q.y), COL_VERDE, 1, false);
+        }
+
+        canvas.drawPolygon(poly1, COL_AZUL, 1, 2);
+        for (std::size_t i = 0; i < poly1.size(); ++i) {
+            const int gx = canvas.worldToGridX(poly1[i].x);
+            const int gy = canvas.worldToGridY(poly1[i].y);
+            if (i == scene.highlightVertexIndex) {
+                canvas.drawSquareMarker(gx, gy, COL_ROJO, 1, true);
+            } else {
+                canvas.drawCrossMarker(gx, gy, COL_ROJO, 1);
+            }
         }
     }
 
-    // 6. Segunda rama para comparacion simultanea de orden (naranja)
+    // 6. Segunda rama para comparacion simultanea de orden (naranja 2 px continuo)
     if (exp.hasSecondBranch) {
         const Matrix3 M2 = composeInApplicationOrder(exp.secondSteps);
         const auto poly2 = transformPolygon(M2, scene.polygon);
         const auto s1b = transformSegment(M2, scene.seg1);
         const auto s2b = transformSegment(M2, scene.seg2);
 
-        canvas.drawWorldSegment(s1b.p, s1b.q, COL_MORADO);
-        canvas.drawWorldSegment(s2b.p, s2b.q, COL_MORADO);
-        canvas.drawPolygon(poly2, COL_NARANJA);
-        for (const auto& v : poly2) {
-            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_NARANJA);
+        canvas.drawWorldSegment(s1b.p, s1b.q, COL_MORADO, 2, 1);
+        canvas.drawWorldSegment(s2b.p, s2b.q, COL_MORADO, 2, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s1b.p.x),
+                               canvas.worldToGridY(s1b.p.y), COL_MORADO, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s1b.q.x),
+                               canvas.worldToGridY(s1b.q.y), COL_MORADO, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s2b.p.x),
+                               canvas.worldToGridY(s2b.p.y), COL_MORADO, 1);
+        canvas.drawCrossMarker(canvas.worldToGridX(s2b.q.x),
+                               canvas.worldToGridY(s2b.q.y), COL_MORADO, 1);
+
+        canvas.drawPolygon(poly2, COL_NARANJA, 1, 2);
+        for (std::size_t i = 0; i < poly2.size(); ++i) {
+            const int gx = canvas.worldToGridX(poly2[i].x);
+            const int gy = canvas.worldToGridY(poly2[i].y);
+            if (i == scene.highlightVertexIndex) {
+                canvas.drawSquareMarker(gx, gy, COL_ROJO, 1, true);
+            } else {
+                canvas.drawCrossMarker(gx, gy, COL_NARANJA, 1);
+            }
         }
     }
-
-    // Mantener visible el origen (0,0) en rojo
-    canvas.putPoint(ORIGIN_X, ORIGIN_Y, COL_ROJO);
 }
 
 }  // namespace cg
