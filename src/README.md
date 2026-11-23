@@ -1,8 +1,8 @@
-# Laboratorio Interactivo de Transformaciones Afines 2D (Tema 2)
+# Laboratorio Interactivo de Transformaciones Afines 2D
 
 **Universidad Nacional de San Antonio Abad del Cusco (UNSAAC)**  
 Escuela Profesional de Ingeniería Informática y de Sistemas  
-**Asignatura**: Computación Gráfica I (`IF455AIN`) · Semestre `2026-02`  
+**Asignatura**: Computación Gráfica I (`IF455AIN`) - Semestre `2026-02`  
 **Docente**: PhD. Carlos Fernando Montoya Cubas  
 **Integrantes**:
 - CHOQUENAIRA GARCIA, Ronal Franklin (`174941`)
@@ -10,85 +10,51 @@ Escuela Profesional de Ingeniería Informática y de Sistemas
 
 ---
 
-## Convención matemática y sistema de coordenadas
+## Convención matemática y rasterización
 
 - **Vectores columna homogéneos**: $p = (x, y, 1)^T$, transformados mediante $p' = M p$.
-- **Composición de matrices**: en $M = A B C$, se aplica primero $C$, luego $B$ y finalmente $A$.
-- **Eje vertical**: la proyección ortográfica `glOrtho(0, 280, 0, 210, -1, 1)` define el **eje $Y$ creciendo hacia arriba**, coincidiendo con el plano cartesiano matemático. Al exportar imágenes raster `.ppm` (cuya fila `0` corresponde al borde superior), se aplica explícitamente la inversión $y_{\text{ppm}} = (H - 1) - y_{\text{raster}}$.
-- **Rasterización propia**: todo el dibujo pasa por `putPixel()` / `putPoint()`, `drawLine()` (Bresenham en todos los octantes) y `drawPolygon()`. No se emplean `glTranslatef`, `glRotatef`, `glScalef`, `glMultMatrix*`, `GL_POLYGON` ni bibliotecas externas de transformación.
-- **Matrices singulares**: si $|\det(A)| < 10^{-9}$, el programa reporta explícitamente la singularidad y bloquea el cálculo de inversa.
-
----
-
-## Estructura de archivos
-
-- `math_affine.hpp`: `Matrix3`, matrices $T, R, S, H_x, H_y, \mathrm{Ref}_x, \mathrm{Ref}_y, \mathrm{Ref}_\phi$, multiplicación $3\times 3$, $\det(A)$, inversa segura, área con signo/absoluta (zapatero) y medida de paralelismo.
-- `raster.hpp`: `RasterCanvas`, `putPixel()`, `putPoint()`, `drawLine()` (Bresenham), `drawPolygon()`, ejes cartesianos, cuadrícula transformable y exportador `.ppm`.
-- `experiments.hpp`: escena base (polígono asimétrico de 6 vértices, área $+10.0\text{ u}^2$, cuadrícula y dos segmentos paralelos $L_1, L_2$) y presets `E0`–`E5` + `REF30`.
-- `main.cpp`: aplicación gráfica interactiva GLFW + OpenGL 2.1.
-- `test_experiments.cpp`: suite de verificación numérica headless (sin ventana gráfica) que valida E1–E5 y exporta resultados reproducibles.
+- **Composición**: en $M = A B C$, actúa primero $C$, luego $B$ y al final $A$.
+- **Rejilla y eje vertical**: lienzo discreto `40 x 30` (ventana `1000 x 750`, celdas de `25 x 25 px` con margen `0.08` para distinguir cada píxel). El origen cartesiano `(0, 0)` se ubica en la celda central `(20, 15)` y `glOrtho(0, 40, 0, 30, -1, 1)` mantiene el eje $+Y$ hacia arriba.
+- **Rasterización propia**: todo trazado evaluado emplea `putPixel()`, `putPoint()`, `drawLine()` (Bresenham en todos los octantes) y `drawPolygon()`, sin usar `glTranslatef`, `glRotatef`, `glScalef`, `glMultMatrix*` ni `GL_POLYGON`.
+- **Panel en consola**: cada cambio de modo o parámetro limpia la terminal y redibuja en el mismo lugar el menú de opciones junto con la matriz compuesta $3\times 3$ y las métricas actualizadas en tiempo real.
 
 ---
 
 ## Compilación y ejecución (Linux / WSL2 Ubuntu)
 
-### Requisitos
-
-```bash
-sudo apt update
-sudo apt install build-essential cmake libglfw3-dev libgl1-mesa-dev
-```
-
-### Compilar
-
 ```bash
 cmake -S . -B build
 cmake --build build -j
-```
 
-### Ejecutar pruebas numéricas (E1–E5)
-
-```bash
+# Verificación numérica reproducible (sin ventana)
 ./build/test_experiments ../experimentos
-```
 
-### Ejecutar laboratorio interactivo
-
-```bash
+# Laboratorio gráfico interactivo
 ./build/lab_afines
-```
 
-### Exportar capturas exactas del rasterizador (modo headless)
-
-```bash
+# Exportación de capturas exactas 1000x750 con rejilla visible
 ./build/lab_afines --export-ppm ../experimentos/capturas_ppm
 ```
 
 ---
 
-## Controles de teclado en la aplicación interactiva
+## Controles de teclado
 
 | Tecla | Acción |
 | :--- | :--- |
-| `0` | Escena base (Identidad) |
-| `1` | **E1**: Cizallamiento horizontal $H_x(0.7)$ |
-| `2` | **E2**: Reflexión respecto al eje vertical $\mathrm{Ref}_y$ |
-| `3` | **E3a**: $R(45^\circ)\,H_x(0.7)$ |
-| `4` | **E3b**: $H_x(0.7)\,R(45^\circ)$ |
-| `5` | **E3 comparativo**: superpone ambos órdenes (azul vs. naranja) |
-| `6` | **E4**: Composición de 4 transformaciones con $|\det(A)| = 1.2$ |
-| `7` | **E5**: Caso degenerado singular $S(1.0, 0.0)$ ($\det(A) = 0$) |
-| `8` | Reflexión sobre recta oblicua $\phi = 30^\circ$: $R(30^\circ)\,\mathrm{Ref}_x\,R(-30^\circ)$ |
-| `I` | Activar modo interactivo en vivo (cadena $\ge 3$ transformaciones) |
-| `A` / `D` | Disminuir / aumentar cizallamiento horizontal $k_x$ ($\pm 0.1$) |
-| `J` / `L` | Disminuir / aumentar cizallamiento vertical $k_y$ ($\pm 0.1$) |
-| `Z` / `X` | Disminuir / aumentar escala $s_x$ ($\pm 0.1$) |
-| `S` / `W` | Disminuir / aumentar escala $s_y$ ($\pm 0.1$, permite llegar a $0.0$) |
-| `Q` / `E` | Rotar $+5^\circ$ / $-5^\circ$ |
-| `← ↑ ↓ →` | Modificar traslación $(t_x, t_y)$ ($\pm 0.5$) |
-| `F` | Alternar reflexión $\mathrm{Ref}_y$ en la cadena interactiva |
-| `O` | Invertir orden de aplicación de la cadena interactiva |
-| `C` | Constructor por consola para concatenar $N \ge 3$ transformaciones exactas |
-| `G` / `H` | Mostrar u ocultar cuadrícula / figura original |
-| `P` / `R` | Imprimir reporte completo en consola / reiniciar parámetros |
-| `ESC` | Cerrar ventana |
+| `0` | Escena base (Identidad, polígono asimétrico de 6 vértices, área $+24.0\text{ u}^2$) |
+| `1` / `2` | Cizallamiento horizontal $H_x(k_x)$ / cizallamiento vertical $H_y(k_y)$ |
+| `3` / `4` | Reflexión eje vertical $\mathrm{Ref}_y$ / reflexión recta oblicua $\mathrm{Ref}_\phi = R(\phi)\mathrm{Ref}_x R(-\phi)$ |
+| `5` | Comparación de orden: $R(\theta)H_x(k_x)$ (azul) frente a $H_x(k_x)R(\theta)$ (naranja) |
+| `6` | Composición de 4 pasos con cambio de área $T\cdot R\cdot S\cdot H_x$ ($|\det(A)| = 1.20$) |
+| `7` | Caso degenerado singular $S(s_x, 0)$ ($\det(A)=0$, sin inversa) |
+| `8` | Modo compuesto interactivo libre ($H_x \to S \to \mathrm{Ref}_y? \to R \to T$) |
+| `C` | Constructor por consola para encadenar $N \ge 3$ transformaciones exactas |
+| `+` / `-` | Modificar el parámetro principal del modo activo en vivo |
+| `A` / `D`, `J` / `L` | Ajustar cizallamiento horizontal $k_x$ y vertical $k_y$ ($\pm 0.1$) |
+| `Z` / `X`, `S` / `W` | Ajustar escala $s_x$ y $s_y$ ($\pm 0.1$; permite llevar $s_y$ a $0.0$) |
+| `Q` / `E`, `← ↑ ↓ →` | Ajustar rotación $\theta$ (o $\phi$ en modo `4`) y traslación $(t_x, t_y)$ |
+| `F` / `O` | Alternar reflexión $\mathrm{Ref}_y$ o invertir el orden de la cadena en modo `8` |
+| `G` | Mostrar u ocultar la rejilla de píxeles (`drawGrid`, igual que en el laboratorio) |
+| `M` / `H` | Mostrar u ocultar la cuadrícula transformada / figura original |
+| `R` / `ESC` | Reiniciar parámetros / salir |

@@ -7,13 +7,12 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
 // ============================================================================
-// Validacion numerica automatizada (headless) de E1-E5 y propiedades afines.
-// Exporta tablas reproducibles a ../experimentos/ para mantener coherencia
+// Validacion numerica automatizada (headless) de los casos de prueba afines.
+// Exporta resultados reproducibles a ../experimentos/ para mantener coherencia
 // exacta entre el programa C++, el informe LaTeX y la presentacion.
 // ============================================================================
 
@@ -51,14 +50,14 @@ int main(int argc, char** argv) {
         const cg::BaseScene scene;
         const auto presets = cg::buildPresetExperiments();
 
-        // 0. Verificar escena base
+        // 0. Verificar escena base (area exacta +24.0 u^2)
         const double baseArea = cg::signedArea(scene.polygon);
-        require(std::abs(baseArea - 10.0) < 1e-9, "Area base del poligono debe ser +10.0");
+        require(std::abs(baseArea - 24.0) < 1e-9, "Area base del poligono debe ser +24.0");
         const auto basePar = cg::measureParallelism(scene.seg1, scene.seg2);
         require(basePar.parallel && !basePar.coincident, "L1 y L2 deben ser paralelos distintos");
 
         std::ofstream txtOut(outDir + "/resumen_experimentos.txt");
-        std::ofstream jsonOut(outDir + "/resultados_e1_e5.json");
+        std::ofstream jsonOut(outDir + "/resultados_experimentos.json");
         jsonOut << "{\n  \"base_polygon\": [";
         for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
             if (i > 0) jsonOut << ", ";
@@ -67,22 +66,22 @@ int main(int argc, char** argv) {
         jsonOut << "],\n  \"base_area_signed\": " << std::fixed << std::setprecision(6) << baseArea
                 << ",\n  \"experiments\": [\n";
 
-        cg::TransformReport repE1{}, repE2{}, repE3a{}, repE3b{}, repE4{}, repE5{}, repRef30{};
+        cg::TransformReport repShear{}, repRefY{}, repRH{}, repHR{}, repArea{}, repSing{}, repRef30{};
 
         bool firstJson = true;
         for (const auto& exp : presets) {
-            if (exp.id == "E3") continue;  // E3a y E3b se reportan individualmente y luego se contrastan
+            if (exp.id == "ORDEN_COMP") continue;
             const cg::Matrix3 M = cg::composeInApplicationOrder(exp.steps);
             const auto rep = cg::evaluateTransform(scene, M);
             cg::printReportToStream(txtOut, scene, exp.title, exp.steps, rep);
 
-            if (exp.id == "E1") repE1 = rep;
-            else if (exp.id == "E2") repE2 = rep;
-            else if (exp.id == "E3a") repE3a = rep;
-            else if (exp.id == "E3b") repE3b = rep;
-            else if (exp.id == "E4") repE4 = rep;
-            else if (exp.id == "E5") repE5 = rep;
-            else if (exp.id == "REF30") repRef30 = rep;
+            if (exp.id == "SHEAR_X") repShear = rep;
+            else if (exp.id == "REF_Y") repRefY = rep;
+            else if (exp.id == "ORDEN_RH") repRH = rep;
+            else if (exp.id == "ORDEN_HR") repHR = rep;
+            else if (exp.id == "AREA_COMP") repArea = rep;
+            else if (exp.id == "SINGULAR") repSing = rep;
+            else if (exp.id == "REF_30") repRef30 = rep;
 
             if (!firstJson) jsonOut << ",\n";
             firstJson = false;
@@ -128,71 +127,66 @@ int main(int argc, char** argv) {
             jsonOut << "]\n    }";
         }
 
-        // Validaciones matematicas estrictas de E1-E5
-        // E1: Hx(0.7) -> det=1, area=10, paralelismo exacto, angulo V0 alterado (ya no 90 deg)
-        require(std::abs(repE1.detA - 1.0) < 1e-9, "E1: det(Hx) debe ser 1");
-        require(std::abs(repE1.transSignedArea - 10.0) < 1e-9, "E1: area debe conservarse (+10)");
-        require(repE1.transParallel.parallel && !repE1.transParallel.coincident,
-                "E1: L1' y L2' deben seguir siendo paralelos distintos");
-        require(std::abs(repE1.transAngleAtV0 - 90.0) > 10.0,
-                "E1: el cizallamiento debe alterar el angulo recto en V0");
+        // Validaciones matematicas estrictas
+        require(std::abs(repShear.detA - 1.0) < 1e-9, "Cizallamiento: det(Hx) debe ser 1");
+        require(std::abs(repShear.transSignedArea - 24.0) < 1e-9, "Cizallamiento: area debe ser +24");
+        require(repShear.transParallel.parallel && !repShear.transParallel.coincident,
+                "Cizallamiento: L1' y L2' deben seguir siendo paralelos distintos");
+        require(std::abs(repShear.transAngleAtV0 - 90.0) > 10.0,
+                "Cizallamiento: el angulo recto en V0 debe alterarse");
 
-        // E2: Ref_y -> det=-1, area_signo=-10, area_abs=10, orientacion invertida
-        require(std::abs(repE2.detA + 1.0) < 1e-9, "E2: det(Ref_y) debe ser -1");
-        require(std::abs(repE2.transSignedArea + 10.0) < 1e-9, "E2: area con signo debe ser -10");
-        require(std::abs(repE2.transAbsArea - 10.0) < 1e-9, "E2: area absoluta debe ser 10");
+        require(std::abs(repRefY.detA + 1.0) < 1e-9, "Reflexion vertical: det(Ref_y) debe ser -1");
+        require(std::abs(repRefY.transSignedArea + 24.0) < 1e-9, "Reflexion vertical: area signo = -24");
+        require(std::abs(repRefY.transAbsArea - 24.0) < 1e-9, "Reflexion vertical: |area| = 24");
 
-        // E3: R(45)*Hx(0.7) != Hx(0.7)*R(45)
-        const cg::Point v4_a = repE3a.transPoly[scene.highlightVertexIndex];
-        const cg::Point v4_b = repE3b.transPoly[scene.highlightVertexIndex];
-        const double distE3 = cg::distanceBetween(v4_a, v4_b);
-        require(distE3 > 1.0, "E3: ambos ordenes deben producir resultados claramente distintos en V4");
+        const cg::Point v4_a = repRH.transPoly[scene.highlightVertexIndex];
+        const cg::Point v4_b = repHR.transPoly[scene.highlightVertexIndex];
+        const double distOrden = cg::distanceBetween(v4_a, v4_b);
+        require(distOrden > 1.0, "Orden: R*Hx y Hx*R deben producir resultados distintos en V4");
         txtOut << "\n========================================================================\n"
-               << "  CONTRASTE E3 (No conmutatividad en V4 = (4, 5))\n"
+               << "  CONTRASTE DE ORDEN EN V4 = (5, 7)\n"
                << "========================================================================\n"
                << "R(45)*Hx(0.7) * V4 = " << cg::formatPoint(v4_a, 6) << "\n"
                << "Hx(0.7)*R(45) * V4 = " << cg::formatPoint(v4_b, 6) << "\n"
-               << "Diferencia euclidiana ||p1 - p2|| = " << std::fixed << std::setprecision(6) << distE3 << "\n";
+               << "Diferencia euclidiana ||p1 - p2|| = " << std::fixed << std::setprecision(6) << distOrden << "\n";
 
-        // E4: |det(A)| = 1.2 != 1, Area' == |det(A)| * Area_orig
-        require(std::abs(std::abs(repE4.detA) - 1.2) < 1e-9, "E4: |det(A)| debe ser 1.2");
-        require(repE4.areaAbsError < 1e-9, "E4: Area' debe coincidir con |det(A)| * Area_orig");
-        cg::Matrix3 invE4{};
-        require(cg::tryInvertAffine(repE4.M, invE4), "E4: debe ser invertible");
-        const cg::Matrix3 prodId = cg::multiplyMatrix(invE4, repE4.M);
+        require(std::abs(std::abs(repArea.detA) - 1.2) < 1e-9, "Cambio de area: |det(A)| debe ser 1.2");
+        require(repArea.areaAbsError < 1e-9, "Cambio de area: Area' == |det(A)| * Area_orig");
+        cg::Matrix3 invArea{};
+        require(cg::tryInvertAffine(repArea.M, invArea), "Cambio de area: debe ser invertible");
+        const cg::Matrix3 prodId = cg::multiplyMatrix(invArea, repArea.M);
         require(std::abs(prodId.a[0][0] - 1.0) < 1e-9 && std::abs(prodId.a[1][1] - 1.0) < 1e-9 &&
                 std::abs(prodId.a[0][2]) < 1e-9 && std::abs(prodId.a[1][2]) < 1e-9,
-                "E4: M^-1 * M debe ser la identidad");
+                "Cambio de area: M^-1 * M debe ser la identidad");
 
-        // E5: S(1, 0) -> det=0, singular, area=0, NO invertible
-        require(repE5.singular && !repE5.invertible, "E5: debe detectarse como matriz singular");
-        require(std::abs(repE5.detA) < 1e-9, "E5: det(A) debe ser 0");
-        require(std::abs(repE5.transAbsArea) < 1e-9, "E5: area debe colapsar a 0");
+        require(repSing.singular && !repSing.invertible, "Caso singular: debe detectarse como singular");
+        require(std::abs(repSing.detA) < 1e-9, "Caso singular: det(A) debe ser 0");
+        require(std::abs(repSing.transAbsArea) < 1e-9, "Caso singular: area debe ser 0");
         cg::Matrix3 dummyInv{};
-        require(!cg::tryInvertAffine(repE5.M, dummyInv), "E5: tryInvertAffine debe rechazar matriz singular");
-        require(repE5.transParallel.coincident, "E5: L1' y L2' colapsan a la misma recta y = 0");
+        require(!cg::tryInvertAffine(repSing.M, dummyInv), "Caso singular: tryInvertAffine debe rechazarla");
+        require(repSing.transParallel.coincident, "Caso singular: L1' y L2' colapsan sobre y = 0");
 
-        // Auxiliar: Ref_30 = R(30) * Ref_x * R(-30) coincide con formula cerrada [cos(60), sin(60); sin(60), -cos(60)]
         const double c60 = std::cos(60.0 * cg::PI / 180.0);
         const double s60 = std::sin(60.0 * cg::PI / 180.0);
         require(std::abs(repRef30.M.a[0][0] - c60) < 1e-9 &&
                 std::abs(repRef30.M.a[0][1] - s60) < 1e-9 &&
                 std::abs(repRef30.M.a[1][0] - s60) < 1e-9 &&
                 std::abs(repRef30.M.a[1][1] + c60) < 1e-9,
-                "REF30: R(30)*Ref_x*R(-30) debe coincidir con la matriz analitica de reflexion");
+                "REF_30: R(30)*Ref_x*R(-30) debe coincidir con la matriz analitica");
 
-        jsonOut << "\n  ],\n  \"e3_v4_comparison\": {\n"
+        jsonOut << "\n  ],\n  \"order_v4_comparison\": {\n"
                 << "    \"v4_orig\": ";
         writeJsonPoint(jsonOut, scene.polygon[scene.highlightVertexIndex]);
         jsonOut << ",\n    \"v4_R_Hx\": ";
         writeJsonPoint(jsonOut, v4_a);
         jsonOut << ",\n    \"v4_Hx_R\": ";
         writeJsonPoint(jsonOut, v4_b);
-        jsonOut << ",\n    \"euclidean_diff\": " << std::fixed << std::setprecision(6) << distE3
+        jsonOut << ",\n    \"euclidean_diff\": " << std::fixed << std::setprecision(6) << distOrden
                 << "\n  }\n}\n";
 
-        std::cout << "[OK] Todas las validaciones matematicas E1-E5 y Ref_phi pasaron (error < 1e-9).\n"
-                  << "[OK] Resultados exportados en: " << outDir << "/resumen_experimentos.txt y resultados_e1_e5.json\n";
+        std::cout << "[OK] Todas las validaciones matematicas pasaron (error < 1e-9).\n"
+                  << "[OK] Resultados exportados en: " << outDir
+                  << "/resumen_experimentos.txt y resultados_experimentos.json\n";
         return EXIT_SUCCESS;
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << "\n";

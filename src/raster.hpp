@@ -10,20 +10,17 @@
 #include <vector>
 
 // ============================================================================
-// Modulo de rasterizacion propia (Tema 2 - Computacion Grafica I)
+// Modulo de rasterizacion propia (estilo Examen de Laboratorio UNSAAC)
 //
-// Reutiliza el enfoque de los laboratorios del curso:
-//   - putPixel() / putPoint() sobre una rejilla discreta de celdas logicas.
-//   - drawLine() mediante algoritmo de Bresenham en todos los octantes.
-//   - drawPolygon() trazando aristas con drawLine().
+// Rejilla discreta 40 x 30 sobre ventana 1000 x 750 (25 x 25 px por celda).
+// Cada celda logica (gx, gy) se dibuja con margen m = 0.08 para distinguir
+// visualmente los pixeles sobre la rejilla drawGrid().
 //
-// Sistema de coordenadas logico:
-//   - Espacio continuo de mundo: x in [-14, 14], y in [-10.5, 10.5]
-//   - Rejilla discreta de rasterizacion: 280 x 210 celdas (10 celdas / unidad)
-//   - Orientacion del eje vertical: Y CRECE HACIA ARRIBA (tanto en mundo como
-//     en el lienzo glOrtho(0, GRID_W, 0, GRID_H, -1, 1)).
-//   - Al exportar a imagen PPM (donde la fila 0 es el borde superior), se aplica
-//     la correccion explicita: row_ppm = (GRID_H - 1) - py.
+// Sistema de coordenadas:
+//   - Origen cartesiano (0, 0) ubicado en el centro de la rejilla: (20, 15).
+//   - Rango cartesiano visible: x in [-20, 19], y in [-15, 14].
+//   - Eje Y crece hacia arriba en glOrtho(0, 40, 0, 30, -1, 1).
+//   - Al exportar imagenes PPM (fila 0 arriba), se invierte verticalmente.
 // ============================================================================
 
 namespace cg {
@@ -34,202 +31,181 @@ struct Color {
     float b{0.0f};
 };
 
-// Paleta de alto contraste y lectura clara en pantalla e informe
-inline constexpr Color COL_BG           = {0.98f, 0.99f, 1.00f};
-inline constexpr Color COL_AXES         = {0.35f, 0.40f, 0.48f};
-inline constexpr Color COL_GRID_ORIG    = {0.84f, 0.88f, 0.93f};
-inline constexpr Color COL_GRID_TRANS   = {0.65f, 0.85f, 0.82f};
-inline constexpr Color COL_POLY_ORIG    = {0.16f, 0.22f, 0.30f};
-inline constexpr Color COL_POLY_TRANS   = {0.06f, 0.36f, 0.82f};
-inline constexpr Color COL_POLY_ALT     = {0.90f, 0.36f, 0.05f};
-inline constexpr Color COL_SEG_ORIG     = {0.42f, 0.48f, 0.56f};
-inline constexpr Color COL_SEG_TRANS    = {0.05f, 0.62f, 0.45f};
-inline constexpr Color COL_SEG_ALT      = {0.75f, 0.16f, 0.48f};
-inline constexpr Color COL_VERTEX_ORIG  = {0.20f, 0.24f, 0.32f};
-inline constexpr Color COL_VERTEX_TRANS = {0.86f, 0.14f, 0.18f};
-inline constexpr Color COL_REF_LINE     = {0.60f, 0.20f, 0.72f};
+inline constexpr int WINDOW_WIDTH  = 1000;
+inline constexpr int WINDOW_HEIGHT = 750;
+inline constexpr int GRID_WIDTH    = 40;
+inline constexpr int GRID_HEIGHT   = 30;
+inline constexpr int ORIGIN_X      = 20;
+inline constexpr int ORIGIN_Y      = 15;
+inline constexpr float CELL_MARGIN = 0.08f;
 
-inline constexpr int GRID_WIDTH  = 280;
-inline constexpr int GRID_HEIGHT = 210;
-inline constexpr double CELLS_PER_UNIT = 10.0;
-inline constexpr double WORLD_X_MIN = -14.0;
-inline constexpr double WORLD_X_MAX =  14.0;
-inline constexpr double WORLD_Y_MIN = -10.5;
-inline constexpr double WORLD_Y_MAX =  10.5;
+// Paleta fiel al examen de laboratorio y al codigo base del equipo
+inline constexpr Color COL_BG           = {1.00f, 1.00f, 1.00f};
+inline constexpr Color COL_GRID_LINE    = {0.87f, 0.88f, 0.90f};
+inline constexpr Color COL_AXES         = {0.58f, 0.62f, 0.68f};
+inline constexpr Color COL_TGRID_ORIG   = {0.82f, 0.85f, 0.90f};
+inline constexpr Color COL_TGRID_TRANS  = {0.62f, 0.84f, 0.80f};
+inline constexpr Color COL_NEGRO        = {0.14f, 0.20f, 0.28f};
+inline constexpr Color COL_AZUL         = {0.10f, 0.34f, 0.82f};
+inline constexpr Color COL_NARANJA      = {0.93f, 0.42f, 0.07f};
+inline constexpr Color COL_VERDE        = {0.05f, 0.58f, 0.38f};
+inline constexpr Color COL_GRIS         = {0.48f, 0.52f, 0.58f};
+inline constexpr Color COL_ROJO         = {0.84f, 0.14f, 0.18f};
+inline constexpr Color COL_MORADO       = {0.58f, 0.22f, 0.72f};
 
-enum class LineStyle {
-    Solid,
-    Dashed,
-    Dotted
-};
-
-// Buffer de rasterizacion propio: cada celda logica (px, py) almacena un color.
-// Permite exactamente la misma salida tanto en ventana OpenGL (via putPoint)
-// como en exportacion reproducible PPM sin depender de capturas externas.
+// Lienzo discreto 40 x 30: toda geometria transformada se rasteriza
+// exclusivamente con putPoint() y Bresenham (sin GL_LINES para figuras).
+// Garantiza exactamente la misma salida en OpenGL y en capturas PPM.
 class RasterCanvas {
 public:
     RasterCanvas(int width = GRID_WIDTH, int height = GRID_HEIGHT)
-        : width_(width), height_(height), pixels_(static_cast<std::size_t>(width * height), COL_BG) {}
+        : width_(width),
+          height_(height),
+          pixels_(static_cast<std::size_t>(width * height), COL_BG),
+          occupied_(static_cast<std::size_t>(width * height), false) {}
 
     int width() const { return width_; }
     int height() const { return height_; }
     const std::vector<Color>& pixels() const { return pixels_; }
+    const std::vector<bool>& occupied() const { return occupied_; }
 
     void clear(Color bg = COL_BG) {
         std::fill(pixels_.begin(), pixels_.end(), bg);
+        std::fill(occupied_.begin(), occupied_.end(), false);
     }
 
-    // Conversion de coordenada continua de mundo -> celda discreta de raster
-    int worldToRasterX(double wx) const {
-        return static_cast<int>(std::lround((wx - WORLD_X_MIN) * CELLS_PER_UNIT));
+    // Conversion coordenada cartesiana (centrada en 0,0) -> indice de celda de rejilla
+    int worldToGridX(double wx) const {
+        return ORIGIN_X + static_cast<int>(std::lround(wx));
     }
 
-    int worldToRasterY(double wy) const {
-        return static_cast<int>(std::lround((wy - WORLD_Y_MIN) * CELLS_PER_UNIT));
+    int worldToGridY(double wy) const {
+        return ORIGIN_Y + static_cast<int>(std::lround(wy));
     }
 
-    // Rutina fundamental del curso: dibuja una celda logica individual
+    // Rutina fundamental del curso: pinta una celda logica individual
     void putPixel(int x, int y, float r, float g, float b) {
         if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
-        pixels_[static_cast<std::size_t>(y * width_ + x)] = {r, g, b};
+        const std::size_t idx = static_cast<std::size_t>(y * width_ + x);
+        pixels_[idx] = {r, g, b};
+        occupied_[idx] = true;
     }
 
     // Alias de laboratorio: putPoint()
-    void putPoint(int x, int y, Color c) {
+    void putPoint(int x, int y, Color c = COL_AZUL) {
         putPixel(x, y, c.r, c.g, c.b);
     }
 
-    // Dibuja un punto reforzado (radio en celdas) para resaltar vertices o grosor
-    void putThickPoint(int cx, int cy, Color c, int radius = 1) {
-        for (int dy = -radius; dy <= radius; ++dy) {
-            for (int dx = -radius; dx <= radius; ++dx) {
-                putPoint(cx + dx, cy + dy, c);
-            }
-        }
-    }
-
-    // Algoritmo de Bresenham para todos los octantes (con soporte de estilo y grosor)
-    void drawLine(int x0, int y0, int x1, int y1, Color c,
-                  LineStyle style = LineStyle::Solid, int thickness = 0) {
+    // Algoritmo de Bresenham para todos los octantes (stepStride=1 solido, >1 punteado)
+    void drawLine(int x0, int y0, int x1, int y1, Color c = COL_NEGRO, int stepStride = 1) {
         int dx = std::abs(x1 - x0);
         int dy = std::abs(y1 - y0);
         int sx = (x0 < x1) ? 1 : -1;
         int sy = (y0 < y1) ? 1 : -1;
         int err = dx - dy;
         int step = 0;
-
         while (true) {
-            bool draw = true;
-            if (style == LineStyle::Dashed) {
-                draw = ((step % 8) < 5);
-            } else if (style == LineStyle::Dotted) {
-                draw = ((step % 4) == 0);
-            }
-            if (draw) {
-                if (thickness <= 0) {
-                    putPoint(x0, y0, c);
-                } else {
-                    putThickPoint(x0, y0, c, thickness);
-                }
+            if (stepStride <= 1 || (step % stepStride == 0)) {
+                putPoint(x0, y0, c);
             }
             if (x0 == x1 && y0 == y1) break;
             const int e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y0 += sy;
-            }
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 <  dx) { err += dx; y0 += sy; }
             ++step;
         }
     }
 
-    void drawWorldLine(const Point& a, const Point& b, Color c,
-                       LineStyle style = LineStyle::Solid, int thickness = 0) {
-        drawLine(worldToRasterX(a.x), worldToRasterY(a.y),
-                 worldToRasterX(b.x), worldToRasterY(b.y), c, style, thickness);
+    void drawWorldSegment(const Point& a, const Point& b, Color c = COL_NEGRO, int stepStride = 1) {
+        drawLine(worldToGridX(a.x), worldToGridY(a.y),
+                 worldToGridX(b.x), worldToGridY(b.y), c, stepStride);
     }
 
-    void drawPolygon(const std::vector<Point>& poly, Color c,
-                     LineStyle style = LineStyle::Solid, int thickness = 0) {
+    void drawPolygon(const std::vector<Point>& poly, Color c = COL_NEGRO) {
         if (poly.size() < 2) return;
         for (std::size_t i = 0; i < poly.size(); ++i) {
             const Point& u = poly[i];
             const Point& v = poly[(i + 1) % poly.size()];
-            drawWorldLine(u, v, c, style, thickness);
+            drawWorldSegment(u, v, c, 1);
         }
     }
 
-    void drawVertexMarkers(const std::vector<Point>& poly, Color c, int radius = 2) {
-        for (const auto& v : poly) {
-            putThickPoint(worldToRasterX(v.x), worldToRasterY(v.y), c, radius);
-        }
+    void drawAxes() {
+        drawLine(0, ORIGIN_Y, width_ - 1, ORIGIN_Y, COL_AXES, 1);
+        drawLine(ORIGIN_X, 0, ORIGIN_X, height_ - 1, COL_AXES, 1);
+        putPoint(ORIGIN_X, ORIGIN_Y, COL_ROJO);
     }
 
-    // Dibuja los ejes cartesianos X=0, Y=0 y marcas de unidad mediante Bresenham
-    void drawCartesianAxes() {
-        drawWorldLine({WORLD_X_MIN, 0.0}, {WORLD_X_MAX, 0.0}, COL_AXES, LineStyle::Solid, 0);
-        drawWorldLine({0.0, WORLD_Y_MIN}, {0.0, WORLD_Y_MAX}, COL_AXES, LineStyle::Solid, 0);
-
-        const int ox = worldToRasterX(0.0);
-        const int oy = worldToRasterY(0.0);
-        for (int x = static_cast<int>(WORLD_X_MIN); x <= static_cast<int>(WORLD_X_MAX); ++x) {
-            const int px = worldToRasterX(static_cast<double>(x));
-            drawLine(px, oy - 2, px, oy + 2, COL_AXES);
-        }
-        for (int y = static_cast<int>(WORLD_Y_MIN); y <= static_cast<int>(WORLD_Y_MAX); ++y) {
-            const int py = worldToRasterY(static_cast<double>(y));
-            drawLine(ox - 2, py, ox + 2, py, COL_AXES);
-        }
-        // Flechas de orientacion positiva (+X derecha, +Y arriba)
-        drawLine(width_ - 2, oy, width_ - 7, oy + 3, COL_AXES);
-        drawLine(width_ - 2, oy, width_ - 7, oy - 3, COL_AXES);
-        drawLine(ox, height_ - 2, ox - 3, height_ - 7, COL_AXES);
-        drawLine(ox, height_ - 2, ox + 3, height_ - 7, COL_AXES);
-    }
-
-    // Dibuja una cuadricula local transformada por M (usando segmentos de recta)
-    void drawTransformedGrid(const Matrix3& M, int xMin, int xMax, int yMin, int yMax,
-                             Color c, LineStyle style = LineStyle::Solid) {
-        for (int x = xMin; x <= xMax; ++x) {
+    // Cuadricula local transformada usando exclusivamente transformPoint() + Bresenham punteado
+    void drawTransformedLattice(const Matrix3& M, int xMin, int xMax, int yMin, int yMax,
+                                int step, Color c, int dotStride = 2) {
+        for (int x = xMin; x <= xMax; x += step) {
             const Point a = transformPoint(M, {static_cast<double>(x), static_cast<double>(yMin)});
             const Point b = transformPoint(M, {static_cast<double>(x), static_cast<double>(yMax)});
-            drawWorldLine(a, b, c, style, 0);
+            drawWorldSegment(a, b, c, dotStride);
         }
-        for (int y = yMin; y <= yMax; ++y) {
+        for (int y = yMin; y <= yMax; y += step) {
             const Point a = transformPoint(M, {static_cast<double>(xMin), static_cast<double>(y)});
             const Point b = transformPoint(M, {static_cast<double>(xMax), static_cast<double>(y)});
-            drawWorldLine(a, b, c, style, 0);
+            drawWorldSegment(a, b, c, dotStride);
         }
     }
 
-    // Exporta el raster actual a formato PPM (escala entera para visualizacion nitida).
-    // Aplica inversion vertical explicita: y_ppm = (height - 1) - y_mundo.
-    bool savePPM(const std::string& path, int pixelScale = 3) const {
-        std::ofstream out(path, std::ios::binary);
-        if (!out) return false;
-        const int outW = width_ * pixelScale;
-        const int outH = height_ * pixelScale;
-        out << "P6\n" << outW << " " << outH << "\n255\n";
+    // Exporta imagen PPM 1000 x 750 fiel a la ventana OpenGL:
+    // dibuja la rejilla de pixeles (si showGrid = true) y cada celda ocupada con margen m = 0.08.
+    bool savePPM(const std::string& path, bool showGrid = true, int cellPx = 25) const {
+        const int imgW = width_ * cellPx;
+        const int imgH = height_ * cellPx;
+        std::vector<unsigned char> img(static_cast<std::size_t>(imgW * imgH * 3), 255);
 
         auto toByte = [](float v) -> unsigned char {
-            const int iv = static_cast<int>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f));
-            return static_cast<unsigned char>(iv);
+            return static_cast<unsigned char>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f));
         };
 
-        for (int y = height_ - 1; y >= 0; --y) {
-            for (int sy = 0; sy < pixelScale; ++sy) {
-                for (int x = 0; x < width_; ++x) {
-                    const Color& c = pixels_[static_cast<std::size_t>(y * width_ + x)];
-                    const unsigned char rgb[3] = {toByte(c.r), toByte(c.g), toByte(c.b)};
-                    for (int sx = 0; sx < pixelScale; ++sx) {
-                        out.write(reinterpret_cast<const char*>(rgb), 3);
+        auto setImgPx = [&](int ix, int iy, Color c) {
+            if (ix < 0 || ix >= imgW || iy < 0 || iy >= imgH) return;
+            const std::size_t off = static_cast<std::size_t>((iy * imgW + ix) * 3);
+            img[off]     = toByte(c.r);
+            img[off + 1] = toByte(c.g);
+            img[off + 2] = toByte(c.b);
+        };
+
+        // 1. Rejilla de pixeles drawGrid()
+        if (showGrid) {
+            for (int gx = 0; gx <= width_; ++gx) {
+                const int px = std::min(imgW - 1, gx * cellPx);
+                for (int py = 0; py < imgH; ++py) setImgPx(px, py, COL_GRID_LINE);
+            }
+            for (int gy = 0; gy <= height_; ++gy) {
+                const int py = std::min(imgH - 1, gy * cellPx);
+                for (int px = 0; px < imgW; ++px) setImgPx(px, py, COL_GRID_LINE);
+            }
+        }
+
+        // 2. Celdas logicas ocupadas con margen m = 0.08 (inversion vertical explicita)
+        const int pad = std::max(1, static_cast<int>(std::lround(CELL_MARGIN * cellPx)));
+        for (int gy = 0; gy < height_; ++gy) {
+            for (int gx = 0; gx < width_; ++gx) {
+                const std::size_t idx = static_cast<std::size_t>(gy * width_ + gx);
+                if (!occupied_[idx]) continue;
+                const Color c = pixels_[idx];
+                const int xStart = gx * cellPx + pad;
+                const int xEnd   = (gx + 1) * cellPx - pad;
+                const int yStart = (height_ - 1 - gy) * cellPx + pad;
+                const int yEnd   = (height_ - gy) * cellPx - pad;
+                for (int py = yStart; py < yEnd; ++py) {
+                    for (int px = xStart; px < xEnd; ++px) {
+                        setImgPx(px, py, c);
                     }
                 }
             }
         }
+
+        std::ofstream out(path, std::ios::binary);
+        if (!out) return false;
+        out << "P6\n" << imgW << " " << imgH << "\n255\n";
+        out.write(reinterpret_cast<const char*>(img.data()),
+                  static_cast<std::streamsize>(img.size()));
         return true;
     }
 
@@ -237,6 +213,7 @@ private:
     int width_;
     int height_;
     std::vector<Color> pixels_;
+    std::vector<bool> occupied_;
 };
 
 }  // namespace cg

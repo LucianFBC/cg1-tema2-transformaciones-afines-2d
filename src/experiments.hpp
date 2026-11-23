@@ -10,35 +10,36 @@
 #include <vector>
 
 // ============================================================================
-// Escena base y definicion reproducible de los 5 experimentos obligatorios
-// (E1-E5) + caso auxiliar de reflexion sobre recta oblicua (Sec. 2.3.3).
+// Escena base y casos experimentales para transformaciones afines 2D.
+// Coordenadas cartesianas centradas en (0,0) -> celda (20,15) en rejilla 40x30.
 // ============================================================================
 
 namespace cg {
 
 struct BaseScene {
-    // Poligono asimetrico de 6 vertices (concavo, sin ejes de simetria).
-    // Area exacta con signo (zapatero): +10.0 u^2 (recorrido antihorario CCW).
+    // Poligono asimetrico concavo de 6 vertices en el primer cuadrante.
+    // Area exacta con signo (zapatero): +24.0 u^2 (recorrido antihorario CCW).
     std::vector<Point> polygon = {
         {1.0, 1.0},  // V0
-        {5.0, 1.0},  // V1
-        {5.0, 2.0},  // V2
-        {3.0, 2.0},  // V3 (vertice concavo)
-        {4.0, 5.0},  // V4 (vertice seleccionado para analisis cuantitativo)
-        {1.0, 4.0}   // V5
+        {7.0, 1.0},  // V1
+        {7.0, 3.0},  // V2
+        {4.0, 3.0},  // V3 (vertice concavo)
+        {5.0, 7.0},  // V4 (vertice de referencia para comparacion de orden)
+        {1.0, 6.0}   // V5
     };
     std::vector<std::string> vertexNames = {"V0", "V1", "V2", "V3", "V4", "V5"};
-    std::size_t highlightVertexIndex = 4;  // V4 = (4, 5)
+    std::size_t highlightVertexIndex = 4;  // V4 = (5, 7)
 
-    // Dos segmentos originalmente paralelos con vector director u = v = (4, 2)
-    Segment seg1 = {{1.0, -1.0}, {5.0,  1.0}, "L1"};
-    Segment seg2 = {{1.0, -3.0}, {5.0, -1.0}, "L2"};
+    // Dos segmentos originalmente paralelos con vector director u = v = (8, 4)
+    Segment seg1 = {{2.0, -2.0}, {10.0,  2.0}, "L1"};
+    Segment seg2 = {{2.0, -6.0}, {10.0, -2.0}, "L2"};
 
-    // Limites de la cuadricula local transformable
-    int gridXMin = 0;
-    int gridXMax = 6;
-    int gridYMin = -4;
-    int gridYMax = 6;
+    // Cuadricula local transformable (paso de 3 unidades)
+    int latticeXMin = 0;
+    int latticeXMax = 9;
+    int latticeYMin = -6;
+    int latticeYMax = 9;
+    int latticeStep = 3;
 };
 
 struct ExperimentConfig {
@@ -46,7 +47,7 @@ struct ExperimentConfig {
     std::string title;
     std::string description;
     std::vector<NamedTransform> steps;
-    bool hasSecondBranch{false};  // Usado en E3 comparativo
+    bool hasSecondBranch{false};
     std::vector<NamedTransform> secondSteps;
     bool drawReflectionAxis{false};
     double reflectionAxisDeg{0.0};
@@ -101,7 +102,6 @@ inline TransformReport evaluateTransform(const BaseScene& scene, const Matrix3& 
     r.origParallel = measureParallelism(scene.seg1, scene.seg2);
     r.transParallel = measureParallelism(r.transSeg1, r.transSeg2);
 
-    // Angulo en V0 entre V5-V0-V1 (originalmente 90 grados) y longitud de V0-V1 (4.0)
     r.origAngleAtV0 = interiorAngleDegrees(scene.polygon[5], scene.polygon[0], scene.polygon[1]);
     r.transAngleAtV0 = interiorAngleDegrees(r.transPoly[5], r.transPoly[0], r.transPoly[1]);
     r.origEdgeV0V1 = distanceBetween(scene.polygon[0], scene.polygon[1]);
@@ -112,66 +112,66 @@ inline TransformReport evaluateTransform(const BaseScene& scene, const Matrix3& 
 inline std::vector<ExperimentConfig> buildPresetExperiments() {
     return {
         {
-            "E0",
+            "BASE",
             "Escena base (Identidad)",
-            "Poligono asimetrico de 6 vertices, cuadricula local y dos segmentos paralelos L1, L2.",
+            "Poligono asimetrico de 6 vertices (area +24 u^2), cuadricula y segmentos paralelos L1, L2.",
             {}, false, {}, false, 0.0
         },
         {
-            "E1",
-            "E1 - Cizallamiento horizontal Hx(0.7)",
-            "Aplica Hx(0.7) y verifica con coordenadas la conservacion del paralelismo y del area (det = 1), pese a alterar angulos y longitudes.",
+            "SHEAR_X",
+            "Cizallamiento horizontal Hx(0.7)",
+            "Verifica conservacion de paralelismo y area (det = 1) con deformacion de angulos y longitudes.",
             {{"Hx(0.7)", shearXMatrix(0.7)}}, false, {}, false, 0.0
         },
         {
-            "E2",
-            "E2 - Reflexion respecto al eje vertical (Ref_y)",
-            "Refleja x -> -x; compara area con signo, area absoluta y cambio de orientacion CCW -> CW (det = -1).",
+            "REF_Y",
+            "Reflexion respecto al eje vertical (Ref_y)",
+            "Refleja x -> -x; invierte area con signo (+24 -> -24) y orientacion (CCW -> CW) conservando |area|.",
             {{"Ref_y", reflectionYMatrix()}}, false, {}, false, 0.0
         },
         {
-            "E3a",
-            "E3a - Orden 1: R(45) * Hx(0.7)",
-            "Aplica primero Hx(0.7) y luego R(45 grados).",
+            "ORDEN_RH",
+            "Composicion R(45) * Hx(0.7)",
+            "Aplica primero cizallamiento Hx(0.7) y luego rotacion R(45).",
             {{"Hx(0.7)", shearXMatrix(0.7)}, {"R(45)", rotationMatrix(45.0)}}, false, {}, false, 0.0
         },
         {
-            "E3b",
-            "E3b - Orden 2: Hx(0.7) * R(45)",
-            "Aplica primero R(45 grados) y luego Hx(0.7).",
+            "ORDEN_HR",
+            "Composicion Hx(0.7) * R(45)",
+            "Aplica primero rotacion R(45) y luego cizallamiento Hx(0.7).",
             {{"R(45)", rotationMatrix(45.0)}, {"Hx(0.7)", shearXMatrix(0.7)}}, false, {}, false, 0.0
         },
         {
-            "E3",
-            "E3 - Comparacion de orden: R(45)*Hx(0.7) vs Hx(0.7)*R(45)",
-            "Superpone ambos ordenes (azul: R*Hx, naranja: Hx*R) y cuantifica la diferencia en V4 = (4, 5).",
+            "ORDEN_COMP",
+            "Comparacion de orden: R(45)*Hx(0.7) vs Hx(0.7)*R(45)",
+            "Superpone ambos ordenes (azul: R*Hx, naranja: Hx*R) y cuantifica la brecha en V4 = (5, 7).",
             {{"Hx(0.7)", shearXMatrix(0.7)}, {"R(45)", rotationMatrix(45.0)}},
             true,
             {{"R(45)", rotationMatrix(45.0)}, {"Hx(0.7)", shearXMatrix(0.7)}},
             false, 0.0
         },
         {
-            "E4",
-            "E4 - Cambio de area (composicion de 4 transformaciones, |det| = 1.2)",
-            "M = T(1.5,-1.0) * R(25) * S(1.5,0.8) * Hx(0.5); contrasta Area' con |det(A)| * Area_orig.",
+            "AREA_COMP",
+            "Cambio de area: T(2,-2) * R(25) * S(1.5,0.8) * Hx(0.5)",
+            "Composicion de 4 transformaciones con |det(A)| = 1.20; contrasta area calculada vs |det(A)| * Area_orig.",
             {
                 {"Hx(0.5)", shearXMatrix(0.5)},
                 {"S(1.5, 0.8)", scalingMatrix(1.5, 0.8)},
                 {"R(25)", rotationMatrix(25.0)},
-                {"T(1.5, -1.0)", translationMatrix(1.5, -1.0)}
+                {"T(2.0, -2.0)", translationMatrix(2.0, -2.0)}
             },
             false, {}, false, 0.0
         },
         {
-            "E5",
-            "E5 - Caso degenerado / matriz singular S(1.0, 0.0)",
-            "Escalamiento con sy = 0 (det(A) = 0): colapso al eje X, area nula y perdida de invertibilidad.",
+            "SINGULAR",
+            "Caso degenerado / matriz singular S(1.0, 0.0)",
+            "Escalamiento con factor vertical nulo (det = 0): colapso sobre y = 0, area 0 y sin inversa.",
             {{"S(1.0, 0.0)", scalingMatrix(1.0, 0.0)}}, false, {}, false, 0.0
         },
         {
-            "REF30",
-            "Auxiliar - Reflexion sobre recta por el origen (phi = 30 grados)",
-            "Demostracion de Ref_phi = R(30) * Ref_x * R(-30) sobre el eje morado y = tan(30)*x.",
+            "REF_30",
+            "Reflexion sobre recta oblicua (phi = 30 grados)",
+            "Verifica Ref_30 = R(30) * Ref_x * R(-30) respecto al eje y = tan(30)*x.",
             {
                 {"R(-30)", rotationMatrix(-30.0)},
                 {"Ref_x", reflectionXMatrix()},
@@ -215,7 +215,7 @@ inline void printReportToStream(std::ostream& os, const BaseScene& scene,
        << " | Error absoluto = " << std::scientific << std::setprecision(2) << rep.areaAbsError
        << std::fixed << std::setprecision(6) << "\n";
 
-    os << "\n--- Angulos y longitudes (no invariantes en general) ---\n";
+    os << "\n--- Angulos y longitudes ---\n";
     os << "Angulo interno en V0 (V5-V0-V1): " << rep.origAngleAtV0
        << " deg -> " << rep.transAngleAtV0 << " deg\n";
     os << "Longitud arista V0-V1          : " << rep.origEdgeV0V1
@@ -225,7 +225,7 @@ inline void printReportToStream(std::ostream& os, const BaseScene& scene,
     for (std::size_t i = 0; i < scene.polygon.size(); ++i) {
         os << "  " << scene.vertexNames[i] << ": "
            << std::setw(18) << formatPoint(scene.polygon[i], 3)
-           << "  -->  " << formatPoint(rep.transPoly[i], 4);
+           << "  ->  " << formatPoint(rep.transPoly[i], 4);
         if (i == scene.highlightVertexIndex) os << "  <-- vertice de referencia";
         os << "\n";
     }
@@ -256,70 +256,79 @@ inline void printReportToStream(std::ostream& os, const BaseScene& scene,
 
 inline void renderExperimentToCanvas(RasterCanvas& canvas, const BaseScene& scene,
                                      const ExperimentConfig& exp,
-                                     bool showOriginal, bool showGrid) {
+                                     bool showOriginal, bool showTransformedLattice) {
     canvas.clear(COL_BG);
 
     const Matrix3 I = identityMatrix();
     const Matrix3 M1 = composeInApplicationOrder(exp.steps);
 
-    // 1. Cuadriculas (original punteada/tenue y transformada solida tenue)
-    if (showGrid) {
+    // 1. Cuadricula local transformable (primero, para quedar detras de ejes y poligono)
+    if (showTransformedLattice) {
         if (showOriginal) {
-            canvas.drawTransformedGrid(I, scene.gridXMin, scene.gridXMax,
-                                       scene.gridYMin, scene.gridYMax,
-                                       COL_GRID_ORIG, LineStyle::Dotted);
+            canvas.drawTransformedLattice(I, scene.latticeXMin, scene.latticeXMax,
+                                          scene.latticeYMin, scene.latticeYMax,
+                                          scene.latticeStep, COL_TGRID_ORIG, 2);
         }
         if (!exp.steps.empty()) {
-            canvas.drawTransformedGrid(M1, scene.gridXMin, scene.gridXMax,
-                                       scene.gridYMin, scene.gridYMax,
-                                       COL_GRID_TRANS, LineStyle::Solid);
+            canvas.drawTransformedLattice(M1, scene.latticeXMin, scene.latticeXMax,
+                                          scene.latticeYMin, scene.latticeYMax,
+                                          scene.latticeStep, COL_TGRID_TRANS, 2);
         }
     }
 
-    // 2. Ejes cartesianos X, Y
-    canvas.drawCartesianAxes();
+    // 2. Ejes cartesianos centrados en (20, 15) mediante Bresenham
+    canvas.drawAxes();
 
-    // 2b. Recta de reflexion oblicua (si aplica)
+    // 3. Recta oblicua de reflexion mediante Bresenham punteado (si aplica)
     if (exp.drawReflectionAxis) {
         const double rad = exp.reflectionAxisDeg * (PI / 180.0);
-        const double L = 16.0;
-        canvas.drawWorldLine({-L * std::cos(rad), -L * std::sin(rad)},
-                             { L * std::cos(rad),  L * std::sin(rad)},
-                             COL_REF_LINE, LineStyle::Dashed, 0);
+        const double L = 22.0;
+        canvas.drawWorldSegment({-L * std::cos(rad), -L * std::sin(rad)},
+                                { L * std::cos(rad),  L * std::sin(rad)},
+                                COL_MORADO, 2);
     }
 
-    // 3. Figura y segmentos originales (estilo discontinuo)
+    // 4. Figura y segmentos originales (estilo negro/gris como en Examen_02)
     if (showOriginal) {
-        canvas.drawWorldLine(scene.seg1.p, scene.seg1.q, COL_SEG_ORIG, LineStyle::Dashed, 0);
-        canvas.drawWorldLine(scene.seg2.p, scene.seg2.q, COL_SEG_ORIG, LineStyle::Dashed, 0);
-        canvas.drawPolygon(scene.polygon, COL_POLY_ORIG, LineStyle::Dashed, 0);
-        canvas.drawVertexMarkers(scene.polygon, COL_VERTEX_ORIG, 1);
+        canvas.drawWorldSegment(scene.seg1.p, scene.seg1.q, COL_GRIS);
+        canvas.drawWorldSegment(scene.seg2.p, scene.seg2.q, COL_GRIS);
+        canvas.drawPolygon(scene.polygon, COL_NEGRO);
+        for (const auto& v : scene.polygon) {
+            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_NEGRO);
+        }
     }
 
-    // 4. Figura y segmentos transformados (rama principal, estilo solido reforzado)
+    // 5. Figura y segmentos transformados (azul y verde como en Examen_02)
     if (!exp.steps.empty()) {
         const auto poly1 = transformPolygon(M1, scene.polygon);
         const auto s1 = transformSegment(M1, scene.seg1);
         const auto s2 = transformSegment(M1, scene.seg2);
 
-        canvas.drawWorldLine(s1.p, s1.q, COL_SEG_TRANS, LineStyle::Solid, 1);
-        canvas.drawWorldLine(s2.p, s2.q, COL_SEG_TRANS, LineStyle::Solid, 1);
-        canvas.drawPolygon(poly1, COL_POLY_TRANS, LineStyle::Solid, 1);
-        canvas.drawVertexMarkers(poly1, COL_VERTEX_TRANS, 2);
+        canvas.drawWorldSegment(s1.p, s1.q, COL_VERDE);
+        canvas.drawWorldSegment(s2.p, s2.q, COL_VERDE);
+        canvas.drawPolygon(poly1, COL_AZUL);
+        for (const auto& v : poly1) {
+            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_ROJO);
+        }
     }
 
-    // 5. Segunda rama comparativa (para E3: Hx*R vs R*Hx)
+    // 6. Segunda rama para comparacion simultanea de orden (naranja)
     if (exp.hasSecondBranch) {
         const Matrix3 M2 = composeInApplicationOrder(exp.secondSteps);
         const auto poly2 = transformPolygon(M2, scene.polygon);
         const auto s1b = transformSegment(M2, scene.seg1);
         const auto s2b = transformSegment(M2, scene.seg2);
 
-        canvas.drawWorldLine(s1b.p, s1b.q, COL_SEG_ALT, LineStyle::Solid, 0);
-        canvas.drawWorldLine(s2b.p, s2b.q, COL_SEG_ALT, LineStyle::Solid, 0);
-        canvas.drawPolygon(poly2, COL_POLY_ALT, LineStyle::Solid, 1);
-        canvas.drawVertexMarkers(poly2, COL_POLY_ALT, 2);
+        canvas.drawWorldSegment(s1b.p, s1b.q, COL_MORADO);
+        canvas.drawWorldSegment(s2b.p, s2b.q, COL_MORADO);
+        canvas.drawPolygon(poly2, COL_NARANJA);
+        for (const auto& v : poly2) {
+            canvas.putPoint(canvas.worldToGridX(v.x), canvas.worldToGridY(v.y), COL_NARANJA);
+        }
     }
+
+    // Mantener visible el origen (0,0) en rojo
+    canvas.putPoint(ORIGIN_X, ORIGIN_Y, COL_ROJO);
 }
 
 }  // namespace cg

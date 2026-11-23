@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.16)
+project(LabTransformacionesAfines2DUnico LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+find_package(OpenGL REQUIRED)
+find_package(glfw3 QUIET)
+if(TARGET glfw)
+    set(GLFW_LINK glfw)
+elseif(TARGET glfw3)
+    set(GLFW_LINK glfw3)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
+    set(GLFW_LINK PkgConfig::GLFW)
+endif()
+
+add_executable(lab_afines_unico main.cpp)
+target_link_libraries(lab_afines_unico PRIVATE OpenGL::GL ${GLFW_LINK})

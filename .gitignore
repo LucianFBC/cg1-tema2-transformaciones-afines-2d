@@ -1,6 +1,7 @@
 # Compilación C++ / CMake
 build/
 src/build/
+src_unico/build/
 *.o
 *.obj
 *.exe
