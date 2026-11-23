@@ -1,0 +1,296 @@
+
+========================================================================
+  Escena base (Identidad)
+========================================================================
+Orden de aplicacion : I (Identidad)
+Producto matricial  : M = I
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    1.0000,    0.0000,    0.0000 ]
+  [    0.0000,    1.0000,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : 1.000000   (|det(A)| = 1.000000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Contraste   : |det(A)| * Area_orig = 10.000000 | Error absoluto = 0.00e+00
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 90.000000 deg
+Longitud arista V0-V1          : 4.000000 -> 4.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (1.0000, 1.0000)
+  V1:     (5.000, 1.000)  -->  (5.0000, 1.0000)
+  V2:     (5.000, 2.000)  -->  (5.0000, 2.0000)
+  V3:     (3.000, 2.000)  -->  (3.0000, 2.0000)
+  V4:     (4.000, 5.000)  -->  (4.0000, 5.0000)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (1.0000, 4.0000)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(1.000, -1.000)->(5.000, 1.000) u'=(4.000, 2.000)
+              L2'=(1.000, -3.000)->(5.000, -1.000) v'=(4.000, 2.000)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  E1 - Cizallamiento horizontal Hx(0.7)
+========================================================================
+Orden de aplicacion : 1. Hx(0.7)
+Producto matricial  : M = Hx(0.7)
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    1.0000,    0.7000,    0.0000 ]
+  [    0.0000,    1.0000,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : 1.000000   (|det(A)| = 1.000000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Contraste   : |det(A)| * Area_orig = 10.000000 | Error absoluto = 0.00e+00
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 55.007980 deg
+Longitud arista V0-V1          : 4.000000 -> 4.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (1.7000, 1.0000)
+  V1:     (5.000, 1.000)  -->  (5.7000, 1.0000)
+  V2:     (5.000, 2.000)  -->  (6.4000, 2.0000)
+  V3:     (3.000, 2.000)  -->  (4.4000, 2.0000)
+  V4:     (4.000, 5.000)  -->  (7.5000, 5.0000)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (3.8000, 4.0000)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(0.300, -1.000)->(5.700, 1.000) u'=(5.400, 2.000)
+              L2'=(-1.100, -3.000)->(4.300, -1.000) v'=(5.400, 2.000)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.389257 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  E2 - Reflexion respecto al eje vertical (Ref_y)
+========================================================================
+Orden de aplicacion : 1. Ref_y
+Producto matricial  : M = Ref_y
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [   -1.0000,    0.0000,    0.0000 ]
+  [    0.0000,    1.0000,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : -1.000000   (|det(A)| = 1.000000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = -10.000000 | Area_abs = 10.000000 | HORARIA (CW, -)
+Contraste   : |det(A)| * Area_orig = 10.000000 | Error absoluto = 0.00e+00
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 90.000000 deg
+Longitud arista V0-V1          : 4.000000 -> 4.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (-1.0000, 1.0000)
+  V1:     (5.000, 1.000)  -->  (-5.0000, 1.0000)
+  V2:     (5.000, 2.000)  -->  (-5.0000, 2.0000)
+  V3:     (3.000, 2.000)  -->  (-3.0000, 2.0000)
+  V4:     (4.000, 5.000)  -->  (-4.0000, 5.0000)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (-1.0000, 4.0000)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(-1.000, -1.000)->(-5.000, 1.000) u'=(-4.000, 2.000)
+              L2'=(-1.000, -3.000)->(-5.000, -1.000) v'=(-4.000, 2.000)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  E3a - Orden 1: R(45) * Hx(0.7)
+========================================================================
+Orden de aplicacion : 1. Hx(0.7) -> 2. R(45)
+Producto matricial  : M = R(45) * Hx(0.7)
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    0.7071,   -0.2121,    0.0000 ]
+  [    0.7071,    1.2021,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : 1.000000   (|det(A)| = 1.000000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Contraste   : |det(A)| * Area_orig = 10.000000 | Error absoluto = 1.78e-15
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 55.007980 deg
+Longitud arista V0-V1          : 4.000000 -> 4.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (0.4950, 1.9092)
+  V1:     (5.000, 1.000)  -->  (3.3234, 4.7376)
+  V2:     (5.000, 2.000)  -->  (3.1113, 5.9397)
+  V3:     (3.000, 2.000)  -->  (1.6971, 4.5255)
+  V4:     (4.000, 5.000)  -->  (1.7678, 8.8388)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (-0.1414, 5.5154)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(0.919, -0.495)->(3.323, 4.738) u'=(2.404, 5.233)
+              L2'=(1.344, -2.899)->(3.748, 2.333) v'=(2.404, 5.233)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.389257 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  E3b - Orden 2: Hx(0.7) * R(45)
+========================================================================
+Orden de aplicacion : 1. R(45) -> 2. Hx(0.7)
+Producto matricial  : M = Hx(0.7) * R(45)
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    1.2021,   -0.2121,    0.0000 ]
+  [    0.7071,    0.7071,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : 1.000000   (|det(A)| = 1.000000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Contraste   : |det(A)| * Area_orig = 10.000000 | Error absoluto = 1.78e-15
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 76.233699 deg
+Longitud arista V0-V1          : 4.000000 -> 5.578530
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (0.9899, 1.4142)
+  V1:     (5.000, 1.000)  -->  (5.7983, 4.2426)
+  V2:     (5.000, 2.000)  -->  (5.5861, 4.9497)
+  V3:     (3.000, 2.000)  -->  (3.1820, 3.5355)
+  V4:     (4.000, 5.000)  -->  (3.7477, 6.3640)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (0.3536, 3.5355)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(1.414, 0.000)->(5.798, 4.243) u'=(4.384, 4.243)
+              L2'=(1.838, -1.414)->(6.223, 2.828) v'=(4.384, 4.243)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.311299 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  E4 - Cambio de area (composicion de 4 transformaciones, |det| = 1.2)
+========================================================================
+Orden de aplicacion : 1. Hx(0.5) -> 2. S(1.5, 0.8) -> 3. R(25) -> 4. T(1.5, -1.0)
+Producto matricial  : M = T(1.5, -1.0) * R(25) * S(1.5, 0.8) * Hx(0.5)
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    1.3595,    0.3416,    1.5000 ]
+  [    0.6339,    1.0420,   -1.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : 1.200000   (|det(A)| = 1.200000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = 12.000000 | Area_abs = 12.000000 | ANTIHORARIA (CCW, +)
+Contraste   : |det(A)| * Area_orig = 12.000000 | Error absoluto = 3.55e-15
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 46.847610 deg
+Longitud arista V0-V1          : 4.000000 -> 6.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (3.2011, 0.6759)
+  V1:     (5.000, 1.000)  -->  (8.6389, 3.2116)
+  V2:     (5.000, 2.000)  -->  (8.9806, 4.2537)
+  V3:     (3.000, 2.000)  -->  (6.2617, 2.9858)
+  V4:     (4.000, 5.000)  -->  (8.6460, 6.7458)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (4.2260, 3.8020)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(2.518, -1.408)->(8.639, 3.212) u'=(6.121, 4.620)
+              L2'=(1.835, -3.492)->(7.956, 1.128) v'=(6.121, 4.620)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.251831 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  E5 - Caso degenerado / matriz singular S(1.0, 0.0)
+========================================================================
+Orden de aplicacion : 1. S(1.0, 0.0)
+Producto matricial  : M = S(1.0, 0.0)
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    1.0000,    0.0000,    0.0000 ]
+  [    0.0000,    0.0000,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : 0.000000   (|det(A)| = 0.000000)
+ADVERTENCIA SINGULAR: det(A) = 0 (|det(A)| < 1e-9). La transformacion NO es
+                      invertible ni inyectiva; NO se calcula matriz inversa.
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = 0.000000 | Area_abs = 0.000000 | DEGENERADA (area nula / colineal)
+Contraste   : |det(A)| * Area_orig = 0.000000 | Error absoluto = 0.00e+00
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 0.000000 deg
+Longitud arista V0-V1          : 4.000000 -> 4.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (1.0000, 0.0000)
+  V1:     (5.000, 1.000)  -->  (5.0000, 0.0000)
+  V2:     (5.000, 2.000)  -->  (5.0000, 0.0000)
+  V3:     (3.000, 2.000)  -->  (3.0000, 0.0000)
+  V4:     (4.000, 5.000)  -->  (4.0000, 0.0000)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (1.0000, 0.0000)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(1.000, 0.000)->(5.000, 0.000) u'=(4.000, 0.000)
+              L2'=(1.000, 0.000)->(5.000, 0.000) v'=(4.000, 0.000)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 0.000000 | COLINEALES / COINCIDENTES (colapso sobre una misma recta)
+
+========================================================================
+  Auxiliar - Reflexion sobre recta por el origen (phi = 30 grados)
+========================================================================
+Orden de aplicacion : 1. R(-30) -> 2. Ref_x -> 3. R(30)
+Producto matricial  : M = R(30) * Ref_x * R(-30)
+Matriz compuesta 3x3 (convencion p' = M * p):
+  [    0.5000,    0.8660,    0.0000 ]
+  [    0.8660,   -0.5000,    0.0000 ]
+  [    0.0000,    0.0000,    1.0000 ]
+det(A)              : -1.000000   (|det(A)| = 1.000000)
+Invertibilidad      : INVERTIBLE (det(A) != 0)
+
+--- Area y orientacion (formula del zapatero) ---
+Original    : Area_signo = 10.000000 | Area_abs = 10.000000 | ANTIHORARIA (CCW, +)
+Transformada: Area_signo = -10.000000 | Area_abs = 10.000000 | HORARIA (CW, -)
+Contraste   : |det(A)| * Area_orig = 10.000000 | Error absoluto = 3.55e-15
+
+--- Angulos y longitudes (no invariantes en general) ---
+Angulo interno en V0 (V5-V0-V1): 90.000000 deg -> 90.000000 deg
+Longitud arista V0-V1          : 4.000000 -> 4.000000
+
+--- Vertices del poligono ---
+  V0:     (1.000, 1.000)  -->  (1.3660, 0.3660)
+  V1:     (5.000, 1.000)  -->  (3.3660, 3.8301)
+  V2:     (5.000, 2.000)  -->  (4.2321, 3.3301)
+  V3:     (3.000, 2.000)  -->  (3.2321, 1.5981)
+  V4:     (4.000, 5.000)  -->  (6.3301, 0.9641)  <-- vertice de referencia
+  V5:     (1.000, 4.000)  -->  (3.9641, -1.1340)
+
+--- Medida de paralelismo (L1 y L2) ---
+Original    : L1=(1.00, -1.00)->(5.00, 1.00) u=(4.00, 2.00) | L2=(1.00, -3.00)->(5.00, -1.00) v=(4.00, 2.00)
+              |u x v|/(||u||||v||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+Transformada: L1'=(-0.366, 1.366)->(3.366, 3.830) u'=(3.732, 2.464)
+              L2'=(-2.098, 2.366)->(1.634, 4.830) v'=(3.732, 2.464)
+              |u' x v'|/(||u'||||v'||) = 0.000000 | angulo = 0.000000 deg | sep = 1.788854 | PARALELOS (rectas distintas, seno = 0)
+
+========================================================================
+  CONTRASTE E3 (No conmutatividad en V4 = (4, 5))
+========================================================================
+R(45)*Hx(0.7) * V4 = (1.767767, 8.838835)
+Hx(0.7)*R(45) * V4 = (3.747666, 6.363961)
+Diferencia euclidiana ||p1 - p2|| = 3.169385
