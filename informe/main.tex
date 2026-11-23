@@ -10,7 +10,7 @@
 \graphicspath{{figuras/}}
 \usepackage{float}
 \usepackage{natbib}
-\usepackage{url}
+\usepackage{xurl}
 \usepackage{ragged2e}
 \usepackage{hyperref}
 \usepackage{booktabs}
@@ -60,16 +60,14 @@
 
 \section{Objetivos}
 
-\textbf{Objetivo general.} Formalizar las transformaciones afines del plano mediante matrices homogéneas $3\times 3$ y verificar, de manera visual y cuantitativa con un laboratorio interactivo desarrollado en C++ sobre rasterización propia, qué propiedades geométricas se conservan y cuáles se alteran bajo transformaciones elementales, composiciones y casos degenerados \citep{hearn2011,foley2014}.
+El presente trabajo analiza las transformaciones afines en el plano bidimensional mediante matrices homogéneas $3\times 3$ y contrasta visual y cuantitativamente su efecto geométrico mediante un laboratorio interactivo desarrollado en C++ sobre rasterización propia \citep{hearn2011,foley2014}. Con ello se busca:
 
-\textbf{Objetivos específicos.}
-\begin{enumerate}
-  \item Expresar la transformación afín $p' = Ap + t$ en coordenadas homogéneas con vectores columna y derivar las matrices de traslación, rotación, escalamiento, cizallamiento horizontal y vertical, y reflexión respecto de los ejes y de una recta oblicua por el origen.
-  \item Establecer el papel del determinante de la parte lineal como factor de cambio de área, indicador de orientación y criterio de invertibilidad, y demostrar qué invariantes conserva toda transformación afín invertible.
-  \item Implementar las matrices, su composición y su aplicación a un polígono asimétrico, a dos segmentos paralelos y a una cuadrícula transformable, dibujando todas las primitivas con \texttt{putPoint()}, Bresenham y \texttt{drawPolygon()}.
-  \item Medir numéricamente el área con signo y absoluta, el determinante, el paralelismo y la orientación antes y después de cada transformación, y contrastar los valores medidos con los predichos por la teoría.
-  \item Analizar la no conmutatividad de la composición y el comportamiento de una matriz singular, evitando afirmar la existencia de inversa cuando $\det(A)=0$.
-\end{enumerate}
+\begin{itemize}
+  \item Formalizar la transformación afín $p' = Ap + t$ en coordenadas homogéneas con vectores columna y derivar las matrices de traslación, rotación, escalamiento, cizallamiento horizontal y vertical, y reflexión respecto de los ejes y de una recta oblicua por el origen.
+  \item Explicar el papel del determinante $\det(A)$ como factor de escala de área, indicador de orientación y criterio de invertibilidad, identificando qué propiedades geométricas se conservan y cuáles se deforman.
+  \item Implementar dichas matrices, su composición y su aplicación sobre un polígono asimétrico de seis vértices, dos segmentos originalmente paralelos y una cuadrícula transformable usando \texttt{putPoint()}, Bresenham y \texttt{drawPolygon()}.
+  \item Verificar de forma numérica el área con signo y absoluta, el determinante, el paralelismo, la no conmutatividad de la composición y el colapso geométrico ante matrices singulares sin afirmar la existencia de inversa cuando $\det(A)=0$.
+\end{itemize}
 
 \section{Fundamento matemático de las transformaciones afines 2D}
 
@@ -328,6 +326,7 @@ Tecla & Efecto en la escena y en el panel de consola \\
 0 & Muestra la escena base sin deformación (matriz identidad). \\
 1 / 2 & Activa el cizallamiento horizontal $H_x(k_x)$ o vertical $H_y(k_y)$. \\
 3 / 4 & Activa la reflexión en eje vertical/horizontal ($\mathrm{Ref}_y/\mathrm{Ref}_x$ con \texttt{F}) o en recta oblicua $\mathrm{Ref}_\phi$. \\
+T / 9 / K & Aplica de forma individual traslación $T(t_x,t_y)$, rotación $R(\theta)$ o escalamiento $S(s_x,s_y)$. \\
 5 & Superpone $R(\theta)H_x(k_x)$ (azul) y $H_x(k_x)R(\theta)$ (naranja) mostrando la brecha en el vértice seleccionado. \\
 6 & Aplica la composición de cuatro pasos $T\cdot R\cdot S\cdot H_x$ con $|\det(A)| \neq 1$. \\
 7 & Aplica el caso degenerado singular $S(s_x, 0)$ mostrando el colapso y la alerta de no invertibilidad. \\

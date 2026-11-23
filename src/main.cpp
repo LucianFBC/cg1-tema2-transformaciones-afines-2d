@@ -35,7 +35,7 @@ cg::RasterCanvas gCanvas(cg::GRID_WIDTH, cg::GRID_HEIGHT);
 bool gShowPixelGrid = true;          // Tecla G: rejilla de pixeles drawGrid()
 bool gShowTransformedLattice = true; // Tecla M: cuadricula local transformada
 bool gShowOriginal = true;           // Tecla H: figura original de referencia
-int gMode = 0;                       // 0..8 o 9 (cadena personalizada tecla C)
+int gMode = 0;                       // 0..8, 9 (cadena C), 10 (T), 11 (R), 12 (S)
 
 // Parametros interactivos editables en vivo
 struct LiveParams {
@@ -149,6 +149,24 @@ cg::ExperimentConfig buildActiveConfig() {
             cfg.steps = std::move(st);
             break;
         }
+        case 10:
+            cfg.id = "TRANS";
+            cfg.title = "T: Traslacion pura T(" + fmtNum(gParams.tx, 1) + ", " + fmtNum(gParams.ty, 1) + ")";
+            cfg.steps = {{"T(" + fmtNum(gParams.tx, 1) + "," + fmtNum(gParams.ty, 1) + ")",
+                          cg::translationMatrix(gParams.tx, gParams.ty)}};
+            break;
+        case 11:
+            cfg.id = "ROT";
+            cfg.title = "9: Rotacion pura R(" + fmtNum(gParams.angleDeg, 1) + " deg)";
+            cfg.steps = {{"R(" + fmtNum(gParams.angleDeg, 1) + ")",
+                          cg::rotationMatrix(gParams.angleDeg)}};
+            break;
+        case 12:
+            cfg.id = "SCALE";
+            cfg.title = "K: Escalamiento puro S(" + fmtNum(gParams.scaleX) + ", " + fmtNum(gParams.scaleY) + ")";
+            cfg.steps = {{"S(" + fmtNum(gParams.scaleX) + "," + fmtNum(gParams.scaleY) + ")",
+                          cg::scalingMatrix(gParams.scaleX, gParams.scaleY)}};
+            break;
         default:
             cfg.id = "CUSTOM";
             cfg.title = "C: Cadena personalizada (" + std::to_string(gCustomChain.size()) + " pasos)";
@@ -191,6 +209,14 @@ void setModeDefaults(int mode) {
         gParams.reflectY = false;
         gParams.reflectX = false;
         gParams.reverseOrder = false;
+    } else if (mode == 10) {
+        gParams.tx = 3.0;
+        gParams.ty = -2.0;
+    } else if (mode == 11) {
+        gParams.angleDeg = 45.0;
+    } else if (mode == 12) {
+        gParams.scaleX = 1.5;
+        gParams.scaleY = 0.8;
     }
 }
 
@@ -205,10 +231,15 @@ void renderTerminalDashboard() {
     std::cout << "============================================================================\n"
               << "  LABORATORIO DE TRANSFORMACIONES AFINES 2D | Rejilla 160x120 (4 px/u)\n"
               << "============================================================================\n"
-              << "MODOS : [0] Base  [1] Hx  [2] Hy  [3] Ref_y/x  [4] Ref_phi  [5] Orden R*Hx\n"
-              << "        [6] Cambio de area (4 pasos)  [7] Singular  [8] Libre  [C] Cadena N>=3\n"
-              << "AJUSTE: [+/-] Parametro activo | [A/D] kx | [J/L] ky | [Z/X] sx | [W/S] sy\n"
-              << "        [Q/E] angulo | [Flechas] tx,ty | [F] Ref_y/x | [O] Invertir orden\n"
+              << "MODOS : [0] Base (Identidad)\n"
+              << "        [1] Cizallamiento horizontal Hx   [2] Cizallamiento vertical Hy\n"
+              << "        [3] Reflexion ejes (Ref_y/Ref_x)  [4] Reflexion oblicua Ref_phi\n"
+              << "        [T] Traslacion T(tx,ty)           [9] Rotacion R(ang)\n"
+              << "        [K] Escalamiento S(sx,sy)         [7] Escalamiento singular S(sx,0)\n"
+              << "        [5] Orden R*Hx vs Hx*R            [6] Composicion 4 pasos (T*R*S*Hx)\n"
+              << "        [8] Libre (Hx, S, Ref, R, T)      [C] Cadena personalizada (N>=3)\n"
+              << "AJUSTE: [+/-] Param. activo | [A/D] Cizall.X | [J/L] Cizall.Y | [Z/X] Esc.X\n"
+              << "        [W/S] Esc.Y | [Q/E] Rotacion/Phi | [Flechas] Traslacion | [F] Ref | [O] Orden\n"
               << "VISTA : [G] Rejilla(" << (gShowPixelGrid ? "ON" : "OFF")
               << ") | [M] Cuadricula(" << (gShowTransformedLattice ? "ON" : "OFF")
               << ") | [H] Original(" << (gShowOriginal ? "ON" : "OFF")
@@ -425,6 +456,15 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
     if (action == GLFW_PRESS && key >= GLFW_KEY_0 && key <= GLFW_KEY_8) {
         setModeDefaults(key - GLFW_KEY_0);
         changed = true;
+    } else if (action == GLFW_PRESS && key == GLFW_KEY_9) {
+        setModeDefaults(11);
+        changed = true;
+    } else if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+        setModeDefaults(10);
+        changed = true;
+    } else if (action == GLFW_PRESS && key == GLFW_KEY_K) {
+        setModeDefaults(12);
+        changed = true;
     } else if (action == GLFW_PRESS && key == GLFW_KEY_G) {
         gShowPixelGrid = !gShowPixelGrid;
         changed = true;
@@ -449,13 +489,17 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
         if (gMode == 1 || gMode == 5 || gMode == 6 || gMode == 8) gParams.shearX += 0.1;
         else if (gMode == 2) gParams.shearY += 0.1;
         else if (gMode == 4) gParams.refPhiDeg += 5.0;
-        else if (gMode == 7) gParams.scaleX += 0.1;
+        else if (gMode == 7 || gMode == 12) gParams.scaleX += 0.1;
+        else if (gMode == 10) gParams.tx += 0.5;
+        else if (gMode == 11) gParams.angleDeg += 5.0;
         changed = true;
     } else if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) {
         if (gMode == 1 || gMode == 5 || gMode == 6 || gMode == 8) gParams.shearX -= 0.1;
         else if (gMode == 2) gParams.shearY -= 0.1;
         else if (gMode == 4) gParams.refPhiDeg -= 5.0;
-        else if (gMode == 7) gParams.scaleX -= 0.1;
+        else if (gMode == 7 || gMode == 12) gParams.scaleX -= 0.1;
+        else if (gMode == 10) gParams.tx -= 0.5;
+        else if (gMode == 11) gParams.angleDeg -= 5.0;
         changed = true;
     } else if (key == GLFW_KEY_A) { gParams.shearX -= 0.1; changed = true; }
     else if (key == GLFW_KEY_D) { gParams.shearX += 0.1; changed = true; }

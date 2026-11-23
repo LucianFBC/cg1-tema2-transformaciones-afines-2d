@@ -44,7 +44,8 @@ cmake --build build -j
 | :--- | :--- |
 | `0` | Escena base (Identidad, polígono asimétrico de 6 vértices, área $+24.0\text{ u}^2$) |
 | `1` / `2` | Cizallamiento horizontal $H_x(k_x)$ / cizallamiento vertical $H_y(k_y)$ |
-| `3` / `4` | Reflexión eje vertical $\mathrm{Ref}_y$ / reflexión recta oblicua $\mathrm{Ref}_\phi = R(\phi)\mathrm{Ref}_x R(-\phi)$ |
+| `3` / `4` | Reflexión eje vertical/horizontal ($\mathrm{Ref}_y$/$\mathrm{Ref}_x$ con `F`) / reflexión recta oblicua $\mathrm{Ref}_\phi = R(\phi)\mathrm{Ref}_x R(-\phi)$ |
+| `T` / `9` / `K` | Traslación pura $T(t_x,t_y)$ / Rotación pura $R(\theta)$ / Escalamiento puro $S(s_x,s_y)$ |
 | `5` | Comparación de orden: $R(\theta)H_x(k_x)$ (azul) frente a $H_x(k_x)R(\theta)$ (naranja) |
 | `6` | Composición de 4 pasos con cambio de área $T\cdot R\cdot S\cdot H_x$ ($|\det(A)| = 1.20$) |
 | `7` | Caso degenerado singular $S(s_x, 0)$ ($\det(A)=0$, sin inversa) |

@@ -26,8 +26,9 @@ cmake --build build -j
 - `0`: Escena base (poligono asimetrico de 6 vertices con area +24.0, segmentos paralelos `L1` y `L2`, cuadricula local)
 - `1`: Cizallamiento horizontal `Hx(kx)`
 - `2`: Cizallamiento vertical `Hy(ky)`
-- `3`: Reflexion respecto al eje vertical (`Ref_y`)
+- `3`: Reflexion respecto al eje vertical u horizontal (`Ref_y`/`Ref_x` con `F`)
 - `4`: Reflexion respecto a recta oblicua por el origen `Ref(phi) = R(phi)*Ref_x*R(-phi)`
+- `T` / `9` / `K`: Traslacion pura `T(tx,ty)`, Rotacion pura `R(ang)` y Escalamiento puro `S(sx,sy)`
 - `5`: Comparacion simultanea de orden `R(ang)*Hx(kx)` (azul) vs `Hx(kx)*R(ang)` (naranja)
 - `6`: Composicion de 4 pasos con cambio de area `T*R*S*Hx`
 - `7`: Caso degenerado / matriz singular `S(sx, 0)`
